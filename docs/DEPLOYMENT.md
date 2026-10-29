@@ -8,6 +8,10 @@ TMailSharp follows the deployment pattern in GravHosting: build an image in GitH
 
 Before the server is contacted, the reusable build workflow restores locked dependencies, runs the integration tests against a temporary MongoDB service, publishes the app, and runs the deployment/rollback tests. A failed test prevents deployment.
 
+The workflow targets the test and web `.csproj` files directly, so it does not require the root `TMailSharp.slnx` solution file. Restoring the test project also restores its referenced web project. Preserve the `src/` and `tests/` folder structure when uploading source files to GitHub.
+
+The validation job is pinned to `ubuntu-22.04`, whose [runner image uses the Linux 6.8 kernel series](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md). This avoids the [MongoDB startup incompatibility with newer kernels](https://www.mongodb.com/docs/v8.0/release-notes/8.0/). If a run fails while starting `mongo:8.0` with `SERVER-121912`, commit the updated `.github/workflows/build.yml` to main and start a **new** manual deployment. Re-running the old failed run uses its original workflow revision. This change only affects the temporary test database on GitHub.
+
 The deployment job uses the **Auto Deploy** GitHub environment, matching GravHosting's existing name. Both workflows independently require a manual event, the main branch, a non-fork repository, and an approved repository ID. Forks, pull requests, other events, and other refs skip all jobs, including validation. Checkouts use the exact commit selected by the manual run and do not persist GitHub credentials in the checkout.
 
 ## Allow the original repository
