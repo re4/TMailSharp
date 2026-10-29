@@ -44,3 +44,18 @@ public sealed class SecurityViewModel
     public int RecoveryCodesRemaining { get; init; }
     public IReadOnlyList<UserPasskeyInfo> Passkeys { get; init; } = [];
 }
+
+public sealed class CreateApiKeyInput
+{
+    [Required, StringLength(80)] public string Name { get; set; } = "";
+    [Required, MaxLength(256), DataType(DataType.Password)] public string Password { get; set; } = "";
+}
+
+public sealed record ApiKeySummary(string Id, string Name, string Prefix, DateTime CreatedAt, string Status);
+
+public sealed class ApiKeysViewModel
+{
+    public IReadOnlyList<ApiKeySummary> Keys { get; init; } = [];
+    public string? NewKey { get; init; }
+    public CreateApiKeyInput Input { get; init; } = new();
+}

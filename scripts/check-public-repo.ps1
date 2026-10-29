@@ -33,6 +33,7 @@ $patterns = @{
     'AWS access key' = '\b(?:AKIA|ASIA)[0-9A-Z]{16}\b'
     'Slack token' = '\bxox[baprs]-[A-Za-z0-9-]{20,}\b'
     'OpenAI key' = '\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{40,}\b'
+    'TMailSharp API key' = '(?<![A-Za-z0-9_-])tmk_[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])'
 }
 foreach ($relative in $files) {
     if (Test-PrivatePath $relative) { $findings.Add("$relative (private file path)"); continue }

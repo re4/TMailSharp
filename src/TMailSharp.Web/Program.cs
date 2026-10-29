@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -70,7 +71,9 @@ builder.Services.Configure<IdentityPasskeyOptions>(options =>
     options.ServerDomain = builder.Configuration["Identity:PasskeyDomain"];
     options.UserVerificationRequirement = "required";
 });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddPolicy("WebsiteAccount", policy =>
+    policy.AddAuthenticationSchemes(IdentityConstants.ApplicationScheme).RequireAuthenticatedUser()));
+builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, _ => { });
 builder.Services.AddControllersWithViews(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
 builder.Services.AddAntiforgery(options =>
 {
@@ -94,6 +97,7 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 65_536);
 builder.Services.AddScoped<MailboxAccess>();
+builder.Services.AddScoped<ApiKeyService>();
 builder.Services.AddSingleton<MongoMailStore>();
 builder.Services.AddSingleton<MailProcessor>();
 builder.Services.AddSingleton<SmtpReceiver>();
@@ -116,9 +120,9 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
     context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src 'self' about:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
-    if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/account") || context.Request.Path.StartsWithSegments("/admin"))
+    if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/inbox") || context.Request.Path.StartsWithSegments("/account") || context.Request.Path.StartsWithSegments("/admin"))
         context.Response.Headers.CacheControl = "no-store";
-    if (context.Request.Path.StartsWithSegments("/api") && !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method))
+    if (context.Request.Path.StartsWithSegments("/inbox") && !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method))
     {
         var origin = context.Request.Headers.Origin.ToString();
         if (context.Request.Headers["X-TMail-Request"] != "1" || (origin.Length > 0 && !string.Equals(origin,

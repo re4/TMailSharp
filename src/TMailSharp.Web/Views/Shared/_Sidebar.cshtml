@@ -5,7 +5,8 @@
     var login = path.StartsWithSegments("/account/login") || path.StartsWithSegments("/account/two-factor");
     var register = path.StartsWithSegments("/account/register");
     var administration = path.StartsWithSegments("/admin");
-    var security = signedIn && path.StartsWithSegments("/account") && !login && !register;
+    var apiKeys = path.StartsWithSegments("/account/api-keys");
+    var security = signedIn && path.StartsWithSegments("/account") && !login && !register && !apiKeys;
 }
 <aside id="site-sidebar" class="sidebar" aria-label="Main navigation" tabindex="-1">
   <div class="sidebar-heading">
@@ -50,6 +51,7 @@
             <ul class="nav-submenu"><li><a href="/admin#message-retention">Message retention</a></li><li><a href="/admin#email-domains">Email domains</a></li></ul>
           }
         }
+        <a class="nav-link @(apiKeys ? "active" : "")" href="/account/api-keys" aria-current="@(apiKeys ? "page" : null)"><svg aria-hidden="true"><use href="/icons.svg#key"/></svg>API keys</a>
         <form action="/account/logout" method="post" class="sidebar-signout">@Html.AntiForgeryToken()<button class="nav-link" type="submit"><svg aria-hidden="true"><use href="/icons.svg#logout"/></svg>Sign out</button></form>
       }
       else

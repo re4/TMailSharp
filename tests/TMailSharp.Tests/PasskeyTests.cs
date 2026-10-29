@@ -40,7 +40,7 @@ public sealed partial class MailAppTests
             clientExtensionResults = new { }, authenticatorAttachment = "cross-platform"
         });
         await Json(await client.PostAsJsonAsync("/account/passkeys/login", new { credentialJson = assertion }));
-        var bootstrap = await Json(await client.GetAsync("/api/bootstrap"));
+        var bootstrap = await Json(await client.GetAsync("/inbox/bootstrap"));
         Assert.Equal("security-key-user", bootstrap.GetProperty("user").GetProperty("name").GetString());
         // A successful ceremony consumes its challenge. Replaying a signature must fail.
         await RefreshToken(client);

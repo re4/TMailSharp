@@ -27,22 +27,22 @@ public sealed partial class MailAppTests
         using var alice = await Client();
         var guest = await CreateMailbox(alice);
         await Register(alice, "alice");
-        var claimed = await Json(await alice.GetAsync("/api/bootstrap"));
+        var claimed = await Json(await alice.GetAsync("/inbox/bootstrap"));
         Assert.Contains(claimed.GetProperty("mailboxes").EnumerateArray(), box => box.GetProperty("id").GetString() == guest.GetProperty("id").GetString());
-        var mailbox = await Json(await alice.PostAsJsonAsync("/api/mailboxes", new { localPart = "reserved-alice", domain = "drop.localhost", permanent = true }));
+        var mailbox = await Json(await alice.PostAsJsonAsync("/inbox/mailboxes", new { localPart = "reserved-alice", domain = "drop.localhost", permanent = true }));
         Assert.True(mailbox.GetProperty("isPermanent").GetBoolean());
         Assert.Equal(System.Text.Json.JsonValueKind.Null, mailbox.GetProperty("expiresAt").ValueKind);
         using var otherDevice = await Client();
         await Login(otherDevice, "alice", UserPassword);
         var id = mailbox.GetProperty("id").GetString();
-        Assert.Equal(HttpStatusCode.OK, (await otherDevice.GetAsync($"/api/mailboxes/{id}/messages")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await otherDevice.GetAsync($"/inbox/mailboxes/{id}/messages")).StatusCode);
         using var bob = await Client();
         await Register(bob, "bob");
-        Assert.Equal(HttpStatusCode.NotFound, (await bob.GetAsync($"/api/mailboxes/{id}/messages")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await bob.DeleteAsync($"/api/mailboxes/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await bob.PostAsJsonAsync("/api/mailboxes", new { localPart = "reserved-alice", domain = "drop.localhost", permanent = true })).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await alice.DeleteAsync($"/api/mailboxes/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await bob.PostAsJsonAsync("/api/mailboxes", new { localPart = "reserved-alice", domain = "drop.localhost", permanent = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await bob.GetAsync($"/inbox/mailboxes/{id}/messages")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await bob.DeleteAsync($"/inbox/mailboxes/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await bob.PostAsJsonAsync("/inbox/mailboxes", new { localPart = "reserved-alice", domain = "drop.localhost", permanent = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await alice.DeleteAsync($"/inbox/mailboxes/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await bob.PostAsJsonAsync("/inbox/mailboxes", new { localPart = "reserved-alice", domain = "drop.localhost", permanent = true })).StatusCode);
     }
 
     [Fact]
@@ -51,15 +51,15 @@ public sealed partial class MailAppTests
         using var client = await Client();
         var mailbox = await CreateMailbox(client);
         var id = mailbox.GetProperty("id").GetString();
-        await Json(await client.PostAsync($"/api/mailboxes/{id}/sample", null));
+        await Json(await client.PostAsync($"/inbox/mailboxes/{id}/sample", null));
         var stored = await Store.Messages.Find(x => x.MailboxId == id).SingleAsync();
         for (var i = 0; i < 3; i++)
         {
-            var detail = await Json(await client.GetAsync($"/api/mailboxes/{id}/messages/{stored.Id}"));
+            var detail = await Json(await client.GetAsync($"/inbox/mailboxes/{id}/messages/{stored.Id}"));
             Assert.True(detail.GetProperty("isRead").GetBoolean());
             Assert.Contains("482 916", detail.GetProperty("textBody").GetString());
-            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/mailboxes/{id}/messages/{stored.Id}/content")).StatusCode);
-            var listing = await Json(await client.GetAsync($"/api/mailboxes/{id}/messages"));
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/inbox/mailboxes/{id}/messages/{stored.Id}/content")).StatusCode);
+            var listing = await Json(await client.GetAsync($"/inbox/mailboxes/{id}/messages"));
             Assert.Single(listing.GetProperty("messages").EnumerateArray());
         }
         var after = await Store.Messages.Find(x => x.Id == stored.Id).SingleAsync();
@@ -73,12 +73,12 @@ public sealed partial class MailAppTests
     {
         using var client = await Client();
         await Login(client, "admin", AdminPassword);
-        var mailbox = await Json(await client.PostAsJsonAsync("/api/mailboxes", new { domain = "drop.localhost", permanent = true }));
+        var mailbox = await Json(await client.PostAsJsonAsync("/inbox/mailboxes", new { domain = "drop.localhost", permanent = true }));
         var id = mailbox.GetProperty("id").GetString();
-        await Json(await client.PostAsync($"/api/mailboxes/{id}/sample", null));
+        await Json(await client.PostAsync($"/inbox/mailboxes/{id}/sample", null));
         await Store.Messages.UpdateManyAsync(x => x.MailboxId == id, Builders<MessageDocument>.Update.Set(x => x.ReceivedAt, DateTime.UtcNow.AddMinutes(-2)));
         Assert.Equal(HttpStatusCode.Redirect, (await Form(client, "/admin/retention", ("minutes", "1"))).StatusCode);
-        var listing = await Json(await client.GetAsync($"/api/mailboxes/{id}/messages"));
+        var listing = await Json(await client.GetAsync($"/inbox/mailboxes/{id}/messages"));
         Assert.Empty(listing.GetProperty("messages").EnumerateArray());
         var persisted = await Store.Mailboxes.Find(x => x.Id == id).SingleAsync();
         Assert.True(persisted.IsPermanent);
@@ -98,15 +98,15 @@ public sealed partial class MailAppTests
         await Store.InitializeAsync();
         Assert.Empty(await Store.GetDomainsAsync(true));
         Assert.Null(await Store.FindRecipientAsync(mailbox.GetProperty("address").GetString()!, default));
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/mailboxes", new { domain = "drop.localhost" })).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/mailboxes/{mailbox.GetProperty("id").GetString()}/messages")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/inbox/mailboxes", new { domain = "drop.localhost" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/inbox/mailboxes/{mailbox.GetProperty("id").GetString()}/messages")).StatusCode);
     }
 
     [Fact]
     public async Task RegistrationCannotGrantAdminAndUnsafeRequestsRequireAntiforgeryTokens()
     {
         using var guest = await Client();
-        Assert.Equal(HttpStatusCode.Unauthorized, (await guest.PostAsJsonAsync("/api/mailboxes", new { permanent = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await guest.PostAsJsonAsync("/inbox/mailboxes", new { permanent = true })).StatusCode);
         var reserved = await Form(guest, "/account/register", ("UserName", "admin"), ("Password", UserPassword), ("ConfirmPassword", UserPassword));
         Assert.Contains("reserved", await reserved.Content.ReadAsStringAsync());
         await Register(guest, "ordinary-user");
@@ -114,7 +114,7 @@ public sealed partial class MailAppTests
         Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
         Assert.Contains("/account/denied", denied.Headers.Location!.ToString());
         guest.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
-        Assert.Equal(HttpStatusCode.BadRequest, (await guest.PostAsJsonAsync("/api/mailboxes", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await guest.PostAsJsonAsync("/inbox/mailboxes", new { })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Form(guest, "/account/logout")).StatusCode);
     }
 
@@ -144,14 +144,14 @@ public sealed partial class MailAppTests
         await RefreshToken(client);
         var login = await Form(client, "/account/login", ("UserName", "two-factor-user"), ("Password", UserPassword));
         Assert.Contains("two-factor", login.Headers.Location!.ToString());
-        Assert.Equal(System.Text.Json.JsonValueKind.Null, (await Json(await client.GetAsync("/api/bootstrap"))).GetProperty("user").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, (await Json(await client.GetAsync("/inbox/bootstrap"))).GetProperty("user").ValueKind);
         Assert.Equal(HttpStatusCode.Redirect, (await Form(client, "/account/two-factor", ("Code", recovery), ("RecoveryCode", "true"))).StatusCode);
         await RefreshToken(client);
-        Assert.Equal("two-factor-user", (await Json(await client.GetAsync("/api/bootstrap"))).GetProperty("user").GetProperty("name").GetString());
+        Assert.Equal("two-factor-user", (await Json(await client.GetAsync("/inbox/bootstrap"))).GetProperty("user").GetProperty("name").GetString());
         using var second = await Client();
         await Form(second, "/account/login", ("UserName", "two-factor-user"), ("Password", UserPassword));
         Assert.Equal(HttpStatusCode.OK, (await Form(second, "/account/two-factor", ("Code", recovery), ("RecoveryCode", "true"))).StatusCode);
-        Assert.Equal(System.Text.Json.JsonValueKind.Null, (await Json(await second.GetAsync("/api/bootstrap"))).GetProperty("user").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, (await Json(await second.GetAsync("/inbox/bootstrap"))).GetProperty("user").ValueKind);
     }
 
     private static string Totp(string key)
@@ -176,12 +176,12 @@ public sealed partial class MailAppTests
         var mailbox = await Store.CreateMailboxAsync(TMailSharp.Services.AddressRules.Hash(token), null, "drop.localhost", default);
         using var client = await Client();
         client.DefaultRequestHeaders.Add("Cookie", "tmailsharp.session=" + token);
-        var bootstrap = await Json(await client.GetAsync("/api/bootstrap"));
+        var bootstrap = await Json(await client.GetAsync("/inbox/bootstrap"));
         Assert.Contains(bootstrap.GetProperty("mailboxes").EnumerateArray(), box => box.GetProperty("id").GetString() == mailbox.Id);
         client.DefaultRequestHeaders.Remove("Cookie");
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/mailboxes/{mailbox.Id}/messages")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/inbox/mailboxes/{mailbox.Id}/messages")).StatusCode);
         using var stranger = await Client();
-        Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"/api/mailboxes/{mailbox.Id}/messages")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"/inbox/mailboxes/{mailbox.Id}/messages")).StatusCode);
     }
 
     [Fact]

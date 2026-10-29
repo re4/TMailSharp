@@ -70,7 +70,7 @@ public sealed partial class MailAppTests : IAsyncLifetime
 
     private static async Task RefreshToken(HttpClient client)
     {
-        var bootstrap = await Json(await client.GetAsync("/api/bootstrap"));
+        var bootstrap = await Json(await client.GetAsync("/inbox/bootstrap"));
         client.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
         client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", bootstrap.GetProperty("csrfToken").GetString());
     }
@@ -92,7 +92,7 @@ public sealed partial class MailAppTests : IAsyncLifetime
     }
 
     private static async Task<JsonElement> CreateMailbox(HttpClient client) =>
-        await Json(await client.PostAsJsonAsync("/api/mailboxes", new { domain = "drop.localhost" }));
+        await Json(await client.PostAsJsonAsync("/inbox/mailboxes", new { domain = "drop.localhost" }));
 
     [Fact]
     public async Task MailboxOwnerCanReadButAnotherBrowserCannotReadOrDelete()
@@ -101,10 +101,10 @@ public sealed partial class MailAppTests : IAsyncLifetime
         using var stranger = await Client();
         var mailbox = await CreateMailbox(owner);
         var id = mailbox.GetProperty("id").GetString();
-        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/api/mailboxes/{id}/messages")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"/api/mailboxes/{id}/messages")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync($"/api/mailboxes/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/api/mailboxes/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/inbox/mailboxes/{id}/messages")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"/inbox/mailboxes/{id}/messages")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync($"/inbox/mailboxes/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/inbox/mailboxes/{id}")).StatusCode);
     }
 
     [Fact]
@@ -114,27 +114,27 @@ public sealed partial class MailAppTests : IAsyncLifetime
         using var stranger = await Client();
         var mailbox = await CreateMailbox(client);
         var id = mailbox.GetProperty("id").GetString();
-        await Json(await client.PostAsync($"/api/mailboxes/{id}/sample", null));
-        var listing = await Json(await client.GetAsync($"/api/mailboxes/{id}/messages"));
+        await Json(await client.PostAsync($"/inbox/mailboxes/{id}/sample", null));
+        var listing = await Json(await client.GetAsync($"/inbox/mailboxes/{id}/messages"));
         var message = Assert.Single(listing.GetProperty("messages").EnumerateArray());
         Assert.False(message.GetProperty("isRead").GetBoolean());
         Assert.False(message.TryGetProperty("textBody", out _));
         Assert.False(message.TryGetProperty("htmlBody", out _));
         var messageId = message.GetProperty("id").GetString();
-        var detail = await Json(await client.GetAsync($"/api/mailboxes/{id}/messages/{messageId}"));
+        var detail = await Json(await client.GetAsync($"/inbox/mailboxes/{id}/messages/{messageId}"));
         Assert.Contains("482 916", detail.GetProperty("textBody").GetString());
-        using var formatted = await client.GetAsync($"/api/mailboxes/{id}/messages/{messageId}/content");
+        using var formatted = await client.GetAsync($"/inbox/mailboxes/{id}/messages/{messageId}/content");
         Assert.Equal(HttpStatusCode.OK, formatted.StatusCode);
         Assert.Contains("default-src 'none'", Assert.Single(formatted.Headers.GetValues("Content-Security-Policy")));
         Assert.Contains("482 916", await formatted.Content.ReadAsStringAsync());
-        Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"/api/mailboxes/{id}/messages/{messageId}/content")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"/inbox/mailboxes/{id}/messages/{messageId}/content")).StatusCode);
         var attachment = Assert.Single(detail.GetProperty("attachments").EnumerateArray());
-        var path = $"/api/mailboxes/{id}/messages/{messageId}/attachments/{attachment.GetProperty("id").GetString()}";
+        var path = $"/inbox/mailboxes/{id}/messages/{messageId}/attachments/{attachment.GetProperty("id").GetString()}";
         using var download = await client.GetAsync(path);
         Assert.Equal("attachment", download.Content.Headers.ContentDisposition?.DispositionType);
         Assert.Contains("Welcome", await download.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync(path)).StatusCode);
-        await client.DeleteAsync($"/api/mailboxes/{id}");
+        await client.DeleteAsync($"/inbox/mailboxes/{id}");
         Assert.Equal(0, await Store.Messages.CountDocumentsAsync(x => x.MailboxId == id));
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(path)).StatusCode);
     }
@@ -146,11 +146,11 @@ public sealed partial class MailAppTests : IAsyncLifetime
         var mailbox = await CreateMailbox(client);
         var id = mailbox.GetProperty("id").GetString();
         var address = mailbox.GetProperty("address").GetString()!;
-        await Json(await client.PostAsync($"/api/mailboxes/{id}/sample", null));
+        await Json(await client.PostAsync($"/inbox/mailboxes/{id}/sample", null));
         await Store.Mailboxes.UpdateOneAsync(x => x.Id == id, Builders<MailboxDocument>.Update.Set(x => x.ExpiresAt, DateTime.UtcNow.AddMinutes(-1)));
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/mailboxes/{id}/messages")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/inbox/mailboxes/{id}/messages")).StatusCode);
         Assert.Null(await Store.FindRecipientAsync(address, default));
-        var collision = await client.PostAsJsonAsync("/api/mailboxes", new { localPart = address.Split('@')[0], domain = "drop.localhost" });
+        var collision = await client.PostAsJsonAsync("/inbox/mailboxes", new { localPart = address.Split('@')[0], domain = "drop.localhost" });
         Assert.Equal(HttpStatusCode.Conflict, collision.StatusCode);
         var mailboxIndexes = await (await Store.Mailboxes.Indexes.ListAsync()).ToListAsync();
         var messageIndexes = await (await Store.Messages.Indexes.ListAsync()).ToListAsync();
@@ -169,9 +169,9 @@ public sealed partial class MailAppTests : IAsyncLifetime
         var processor = _factory.Services.GetRequiredService<MailProcessor>();
         Assert.Equal(1, await processor.DeliverAsync(raw, [address], default));
         Assert.Equal(1, await processor.DeliverAsync(raw, [address], default));
-        var listing = await Json(await client.GetAsync($"/api/mailboxes/{id}/messages"));
+        var listing = await Json(await client.GetAsync($"/inbox/mailboxes/{id}/messages"));
         var message = Assert.Single(listing.GetProperty("messages").EnumerateArray());
-        var detail = await Json(await client.GetAsync($"/api/mailboxes/{id}/messages/{message.GetProperty("id").GetString()}"));
+        var detail = await Json(await client.GetAsync($"/inbox/mailboxes/{id}/messages/{message.GetProperty("id").GetString()}"));
         var html = detail.GetProperty("htmlBody").GetString()!;
         Assert.Contains("Safe text", html);
         Assert.Contains("https://example.com/verify", html);
@@ -192,11 +192,11 @@ public sealed partial class MailAppTests : IAsyncLifetime
         await Login(client, "admin", AdminPassword);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/admin")).StatusCode);
         Assert.Equal(HttpStatusCode.Redirect, (await Form(client, "/admin/domains", ("name", "TEST.Example.com"), ("enabled", "true"))).StatusCode);
-        var mailbox = await Json(await client.PostAsJsonAsync("/api/mailboxes", new { domain = "test.example.com" }));
+        var mailbox = await Json(await client.PostAsJsonAsync("/inbox/mailboxes", new { domain = "test.example.com" }));
         Assert.NotNull(await Store.FindRecipientAsync(mailbox.GetProperty("address").GetString()!, default));
         Assert.Equal(HttpStatusCode.Redirect, (await Form(client, "/admin/domains", ("name", "test.example.com"), ("enabled", "false"))).StatusCode);
         Assert.Null(await Store.FindRecipientAsync(mailbox.GetProperty("address").GetString()!, default));
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/mailboxes", new { domain = "test.example.com" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/inbox/mailboxes", new { domain = "test.example.com" })).StatusCode);
         await Store.InitializeAsync();
         Assert.DoesNotContain(await Store.GetDomainsAsync(), d => d.Name == "test.example.com");
         await client.PostAsync("/account/logout", null);
@@ -208,18 +208,18 @@ public sealed partial class MailAppTests : IAsyncLifetime
     {
         using var client = await Client();
         client.DefaultRequestHeaders.Remove("X-TMail-Request");
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/mailboxes", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/inbox/mailboxes", new { })).StatusCode);
         client.DefaultRequestHeaders.Add("X-TMail-Request", "1");
         client.DefaultRequestHeaders.Add("Origin", "https://attacker.example");
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/mailboxes", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/inbox/mailboxes", new { })).StatusCode);
     }
 
     [Fact]
     public async Task InvalidAddressAndDomainAreRejected()
     {
         using var client = await Client();
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/mailboxes", new { localPart = "../outside", domain = "drop.localhost" })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/mailboxes", new { localPart = "admin", domain = "drop.localhost" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/inbox/mailboxes", new { localPart = "../outside", domain = "drop.localhost" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/inbox/mailboxes", new { localPart = "admin", domain = "drop.localhost" })).StatusCode);
         Assert.Throws<AppException>(() => AddressRules.NormalizeDomain("https://evil.com/path"));
         Assert.Throws<AppException>(() => AddressRules.NormalizeDomain("-invalid.example.com"));
     }
@@ -245,7 +245,7 @@ public sealed partial class MailAppTests : IAsyncLifetime
         await writer.WriteLineAsync($"From: sender@example.com\r\nTo: {address}\r\nSubject: Real SMTP delivery\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHello over the wire.\r\n.");
         Assert.StartsWith("250", await Reply(reader));
         await writer.WriteLineAsync("QUIT"); Assert.StartsWith("221", await Reply(reader));
-        var listing = await Json(await client.GetAsync($"/api/mailboxes/{mailbox.GetProperty("id").GetString()}/messages"));
+        var listing = await Json(await client.GetAsync($"/inbox/mailboxes/{mailbox.GetProperty("id").GetString()}/messages"));
         var message = Assert.Single(listing.GetProperty("messages").EnumerateArray());
         Assert.Equal("Real SMTP delivery", message.GetProperty("subject").GetString());
     }

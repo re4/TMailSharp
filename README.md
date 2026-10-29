@@ -181,17 +181,19 @@ The website and HTTP API can run behind Cloudflare Tunnel. Keep the mail server'
 
 ## HTTP API
 
-Visitors can open **`/docs/`** on any running TMailSharp server for the public mailbox API documentation. It is linked from the inbox sidebar and footer, with curl and JavaScript examples, response fields, session requirements, and status codes. No sign-in is required to read it.
+Visitors can open **`/docs/`** for the public mailbox API documentation, with curl and server-side JavaScript examples, response fields, and status codes. Reading it does not require sign-in. Using any `/api/*` endpoint requires an account-issued API key.
+
+Register or sign in, then open **API keys** in the sidebar. Confirm your password to create a named key and copy it immediately; the full key is shown only once. Send `Authorization: Bearer YOUR_API_KEY` on every API request. Keys access only their account's mailboxes and cannot administer the server. Users can revoke them at any time; password or account-security changes invalidate existing keys.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/bootstrap` | Available domains and the current session's inboxes |
+| `GET` | `/api/bootstrap` | Available domains and the key owner's inboxes |
 | `POST` | `/api/mailboxes` | Create an inbox |
 | `GET` | `/api/mailboxes/{id}/messages` | List received messages |
 | `GET` | `/api/mailboxes/{id}/messages/{messageId}` | Read a message and mark it as read |
 | `DELETE` | `/api/mailboxes/{id}/messages/{messageId}` | Delete a message |
 | `DELETE` | `/api/mailboxes/{id}` | Delete an inbox |
-| `POST` | `/api/mailboxes/{id}/reserve` | Reserve an owned address permanently while signed in |
+| `POST` | `/api/mailboxes/{id}/reserve` | Reserve an owned address permanently |
 | `GET` | `/api/mailboxes/{id}/messages/{messageId}/attachments/{attachmentId}` | Download an attachment |
 
 Example body for creating an inbox:
@@ -205,7 +207,7 @@ Example body for creating an inbox:
 
 Omit `localPart`, or set it to `null`, for a random address.
 
-Start with `/api/bootstrap` and retain its cookies and `csrfToken`. Non-GET requests require both `X-TMail-Request: 1` and `X-CSRF-TOKEN: <csrfToken>`; JSON bodies also require `Content-Type: application/json`. Refresh the token after signing in or out. Signed-in users may create an inbox with `permanent: true`. Cross-origin access is not enabled. There are no outbound-mail endpoints.
+Start with `/api/bootstrap`, using the bearer key. JSON bodies also require `Content-Type: application/json`; API requests do not require cookies or CSRF tokens. Set `permanent: true` to keep an address. Store keys in server-side secret settings, never in URLs or public browser code. Cross-origin browser access is not enabled. There are no outbound-mail endpoints. The website continues to support guest inboxes through separate cookie-protected routes.
 
 See the [mailbox API reference](docs/API.md) for response fields and status codes.
 

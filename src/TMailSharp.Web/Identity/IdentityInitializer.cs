@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using TMailSharp.Configuration;
 
 namespace TMailSharp.Identity;
@@ -11,7 +12,9 @@ public static class IdentityInitializer
     {
         using var scope = app.Services.CreateScope();
         var services = scope.ServiceProvider;
-        await services.GetRequiredService<IdentityDatabase>().Database.EnsureCreatedAsync();
+        var database = services.GetRequiredService<IdentityDatabase>();
+        await database.Database.EnsureCreatedAsync();
+        await EnsureApiKeySchemaAsync(database);
         var keys = services.GetRequiredService<IKeyManager>();
         var compromised = Guid.Parse("cb90e7a2-100d-42a3-bb3a-2412d5fee480");
         if (keys.GetAllKeys().Any(k => k.KeyId == compromised && !k.IsRevoked))
@@ -34,6 +37,22 @@ public static class IdentityInitializer
         else if (!await users.IsInRoleAsync(administrator, "Administrator"))
             throw new InvalidOperationException("The administrator name belongs to a non-administrator account.");
     }
+
+    public static Task EnsureApiKeySchemaAsync(IdentityDatabase database) => database.Database.ExecuteSqlRawAsync("""
+        CREATE TABLE IF NOT EXISTS "ApiKeys" (
+            "Id" TEXT NOT NULL CONSTRAINT "PK_ApiKeys" PRIMARY KEY,
+            "UserId" TEXT NOT NULL,
+            "Name" TEXT NOT NULL,
+            "Hash" TEXT NOT NULL,
+            "Prefix" TEXT NOT NULL,
+            "SecurityStamp" TEXT NOT NULL,
+            "CreatedAt" TEXT NOT NULL,
+            "RevokedAt" TEXT NULL,
+            CONSTRAINT "FK_ApiKeys_AspNetUsers_UserId" FOREIGN KEY ("UserId") REFERENCES "AspNetUsers" ("Id") ON DELETE CASCADE
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS "IX_ApiKeys_Hash" ON "ApiKeys" ("Hash");
+        CREATE INDEX IF NOT EXISTS "IX_ApiKeys_UserId" ON "ApiKeys" ("UserId");
+        """);
 
     private static void Require(IdentityResult result)
     {

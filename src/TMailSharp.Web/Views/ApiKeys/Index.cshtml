@@ -1,0 +1,33 @@
+@model ApiKeysViewModel
+@{ ViewData["Title"] = "API keys"; }
+<main class="account-shell"><div class="eyebrow">FOR YOUR SCRIPTS AND APPS</div><h1>Your mailbox API keys.</h1>
+<p>Each key can access your mailboxes. Keep it private and use it only in trusted server-side scripts or apps. Keys cannot manage accounts or administer the server.</p>
+@if (Model.NewKey is not null)
+{
+  <section class="account-card" aria-labelledby="new-key-heading"><h2 id="new-key-heading">Copy your key now</h2>
+    <p>This is the only time the full key is shown. Save it in your app's secret settings.</p>
+    <pre class="secret-key"><code id="created-api-key">@Model.NewKey</code></pre>
+    <p>Send it as <code>Authorization: Bearer YOUR_API_KEY</code>. Never put it in a URL or public browser code.</p>
+  </section>
+}
+<section class="account-card"><h2>Create a key</h2>
+<p>You can have up to 10 active keys. Changing your password or account security settings invalidates your existing keys.</p>
+<form action="/account/api-keys" method="post" class="account-form">@Html.AntiForgeryToken()
+  <div asp-validation-summary="All" class="form-error" role="alert"></div>
+  <label asp-for="Input.Name">Key name</label><input asp-for="Input.Name" class="form-input" placeholder="e.g. My testing script" maxlength="80" required>
+  <label asp-for="Input.Password">Current password</label><input asp-for="Input.Password" class="form-input" autocomplete="current-password" required>
+  <button class="primary-button">Create API key</button>
+</form></section>
+<section class="account-card"><h2>Your keys</h2>
+@if (Model.Keys.Count == 0) { <p>You haven't created any API keys yet.</p> }
+@foreach (var key in Model.Keys)
+{
+  <div class="domain-card"><h3>@key.Name</h3><p><code>@key.Prefix…</code> · @key.Status</p>
+    <p class="small">Created @key.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</p>
+    @if (key.Status == "Active")
+    {
+      <form action="/account/api-keys/@key.Id/revoke" method="post">@Html.AntiForgeryToken()<button class="secondary-button danger-subtle">Revoke key</button></form>
+    }
+  </div>
+}
+</section><p><a href="/docs/">Open the mailbox API documentation →</a></p></main>

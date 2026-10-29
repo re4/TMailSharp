@@ -12,7 +12,7 @@ export async function api(path, options = {}) {
   const headers = { 'X-TMail-Request': '1', ...options.headers };
   if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
-  const response = await fetch(`/api${path}`, { credentials: 'same-origin', cache: 'no-store', ...options, headers,
+  const response = await fetch(`/inbox${path}`, { credentials: 'same-origin', cache: 'no-store', ...options, headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body), signal: options.signal ?? AbortSignal.timeout(15000) });
   if (response.status === 204) return null;
   let result;
@@ -216,7 +216,7 @@ async function openMessage(messageId) {
     showMessageBody(Boolean(detail.htmlBody));
     $('#detail-attachments').replaceChildren(...detail.attachments.map(attachment => {
       const link = element('a', 'attachment-link');
-      link.href = `/api/mailboxes/${mailboxId}/messages/${messageId}/attachments/${attachment.id}`;
+      link.href = `/inbox/mailboxes/${mailboxId}/messages/${messageId}/attachments/${attachment.id}`;
       link.setAttribute('download', attachment.fileName);
       link.append(icon('attachment'), document.createTextNode(attachment.fileName), element('span', '', `${Math.max(1, Math.ceil(attachment.size / 1024))} KB ↓`));
       return link;
@@ -236,7 +236,7 @@ function showMessageBody(formatted) {
     iframe.title = 'Email content';
     iframe.setAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox');
     iframe.setAttribute('referrerpolicy', 'no-referrer');
-    iframe.src = `/api/mailboxes/${state.detail.mailboxId}/messages/${state.detail.id}/content?theme=${document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'}`;
+    iframe.src = `/inbox/mailboxes/${state.detail.mailboxId}/messages/${state.detail.id}/content?theme=${document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'}`;
     container.append(iframe);
   } else container.append(element('pre', '', state.detail.textBody || 'This email has no text content.'));
 }

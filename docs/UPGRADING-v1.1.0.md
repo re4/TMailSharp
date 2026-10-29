@@ -39,9 +39,11 @@ Deleting a domain stops new inboxes and incoming deliveries for that domain. Exi
 
 ## API migration
 
-Call `GET /api/bootstrap` first, retain all returned cookies, and send its `csrfToken` as `X-CSRF-TOKEN` on mutations, in addition to `X-TMail-Request: 1`. Get a new token after signing in or out. The public `/docs/` reference covers mailbox operations only.
+All `/api/*` requests now require `Authorization: Bearer YOUR_API_KEY`, including reads and downloads. Register or sign in on the website, open **API keys**, and create a key with your current password. Copy it once and keep it in your client's secret settings. Cookie-only integrations must migrate to a bearer key; CSRF tokens and `X-TMail-Request` are no longer required for these API requests. The public `/docs/` reference covers mailbox operations only.
 
-Mailbox responses now include `isPermanent`; `expiresAt` is null for permanent addresses. `POST /api/mailboxes` accepts `permanent: true` for signed-in users. `POST /api/mailboxes/{id}/reserve` converts an owned temporary address into a permanent one.
+Startup adds the API-key table and indexes to an existing Identity database without recreating account tables. Only hashed keys and their metadata are stored. Up to 10 active keys are allowed per account. Revoked keys stop working immediately; account-security changes invalidate existing keys. API keys cannot access account management or administration. The website uses separate cookie/CSRF-protected routes and retains guest inbox support.
+
+Mailbox responses include `isPermanent`; `expiresAt` is null for permanent addresses. `POST /api/mailboxes` accepts `permanent: true`. `POST /api/mailboxes/{id}/reserve` converts an owned temporary address into a permanent one.
 
 ## Verification
 

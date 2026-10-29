@@ -2,11 +2,15 @@
 
 ## Request flow
 
-ASP.NET Core MVC controllers serve Razor views and the same-origin mailbox API. ASP.NET Core Identity provides password hashing, account lockout, role authorization, authenticator 2FA, recovery codes, and FIDO2 passkeys. Identity uses the standard Entity Framework Core SQLite store with schema version 3.
+ASP.NET Core MVC controllers serve Razor views, the website's `/inbox/*` routes, and the public `/api/*` mailbox API. ASP.NET Core Identity provides password hashing, account lockout, role authorization, authenticator 2FA, recovery codes, and FIDO2 passkeys. Identity uses the standard Entity Framework Core SQLite store with schema version 3.
 
 Guests receive a protected random token in an HttpOnly, SameSite=Strict cookie. Its SHA-256 digest identifies their mailboxes. Account-owned inboxes use an owner identifier derived from the authenticated Identity user ID. Every mailbox, message, and attachment operation checks ownership. Administrators use the same Identity sign-in flow and must have the Administrator role.
 
-Unsafe actions validate antiforgery tokens. The mailbox API also requires its custom request header and checks any supplied Origin. Production cookies require HTTPS. The disclosed v1.0 key is revoked on startup if found; the v1.1 application discriminator and cookie names also change.
+Website mutations validate antiforgery tokens; `/inbox/*` mutations also require the custom request header and check any supplied Origin. Public `/api/*` routes authenticate exclusively through a separate bearer-key scheme and ignore cookie identities. They do not require CSRF tokens. Both route groups reuse the same mailbox actions and ownership checks. API-key principals contain the owner's ID without administrator roles and cannot authenticate account-management routes.
+
+API keys contain 256 random bits. SQLite stores only their SHA-256 hashes, display prefixes, owner IDs, security stamps, creation times, and revocation times. Authentication checks revocation, current account security stamp, account availability, and lockout on every request. Startup adds the table/indexes to existing Identity databases without replacing account data. Key creation requires an authenticated website session, the current password, and antiforgery validation, with a transactional limit of 10 active keys per account.
+
+Production cookies require HTTPS. The disclosed v1.0 key is revoked on startup if found; the v1.1 application discriminator and cookie names also change.
 
 The UI remembers only the selected mailbox ID and theme in local storage. It never stores authentication tokens there. It polls at six-second intervals while visible. Mail content is inserted as text or served in a sandboxed iframe after server-side allowlist sanitization. Attachments always download as `application/octet-stream` with a filename and `nosniff`.
 
