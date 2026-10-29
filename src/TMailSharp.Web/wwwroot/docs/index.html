@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Use the TMailSharp mailbox API to create temporary inboxes, read incoming email, and download attachments. Examples, session access, endpoints, and errors.">
+  <meta name="theme-color" content="#0b1120">
+  <title>Mailbox API documentation — TMailSharp</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" type="module"></script>
+</head>
+<body class="docs-page">
+  <a class="docs-skip" href="#main-content">Skip to documentation</a>
+  <header class="docs-header">
+    <a href="/" class="brand" aria-label="TMailSharp home"><span class="brand-mark"><svg aria-hidden="true"><use href="/icons.svg#mail"/></svg></span><span>TMail<span class="brand-light">Sharp</span></span></a>
+    <div class="docs-header-actions"><a href="/" class="text-button"><svg aria-hidden="true"><use href="/icons.svg#back"/></svg>Back to inbox</a><button id="theme-toggle" class="icon-button" aria-label="Switch to light mode"><svg aria-hidden="true"><use href="/icons.svg#sun"/></svg></button></div>
+  </header>
+
+  <div class="docs-layout">
+    <nav class="docs-nav" aria-label="On this page">
+      <span class="nav-section-label">MAILBOX API</span>
+      <a href="#quickstart">Quickstart</a>
+      <a href="#sessions">Sessions &amp; requests</a>
+      <a href="#inboxes">Inboxes</a>
+      <a href="#messages">Messages &amp; attachments</a>
+      <a href="#errors">Errors &amp; limits</a>
+      <p>HTTP + JSON<br>No API key required.</p>
+    </nav>
+
+    <main id="main-content" class="docs-content" tabindex="-1">
+      <div class="docs-intro">
+        <div class="eyebrow"><svg aria-hidden="true"><use href="/icons.svg#code"/></svg>BUILD WITH TMAILSHARP</div>
+        <h1>A little less noise.<br>In your workflow, too.</h1>
+        <p>Create temporary inboxes, check incoming email, and download attachments from your own scripts and apps.</p>
+        <div class="docs-base"><span>BASE URL</span><code data-origin>https://mail.example.com</code></div>
+        <p class="docs-caption">Use the address of your TMailSharp website. All paths below are relative to it. The mailbox API receives email; it cannot send or reply.</p>
+      </div>
+
+      <section id="quickstart" class="docs-section" aria-labelledby="quickstart-heading">
+        <h2 id="quickstart-heading">Get your first inbox</h2>
+        <p>Create an inbox, keep the session cookie, then check for messages. An empty JSON object lets the server choose an available domain and a random address.</p>
+        <div class="docs-code"><div class="docs-code-heading"><span>Bash / curl</span></div><pre data-copyable aria-label="Quickstart curl commands"><code>BASE_URL=<span data-shell-origin>'https://mail.example.com'</span>
+COOKIE_JAR='./tmail-cookies.txt'
+
+# Create an inbox and save its access cookie.
+curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+  -H 'X-TMail-Request: 1' \
+  -H 'Content-Type: application/json' \
+  -d '{}' \
+  "$BASE_URL/api/mailboxes"
+
+# Copy the id from the response above, then check its inbox.
+MAILBOX_ID='PASTE_MAILBOX_ID'
+curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+  "$BASE_URL/api/mailboxes/$MAILBOX_ID/messages"</code></pre></div>
+        <p>Send an email to the returned <code>address</code> from your usual mail client, then check for messages. Keep using the same cookie file for every request.</p>
+        <div class="docs-code"><div class="docs-code-heading"><span>Example creation response · 201 Created</span></div><pre data-copyable aria-label="Example inbox response"><code>{
+  "id": "21fc2b180a734dc0939f8be8125c3d27",
+  "address": "quiet.otter.4829@inbox.example.com",
+  "domain": "inbox.example.com",
+  "createdAt": "2026-10-29T10:00:00Z",
+  "expiresAt": "2026-10-29T11:00:00Z"
+}</code></pre></div>
+        <p class="docs-caption">IDs, domains, timestamps, and limits shown in examples are illustrative. Use the values returned by your server.</p>
+        <details class="docs-details">
+          <summary>JavaScript example for a page on this server</summary>
+          <p>Browser requests must use the same origin as TMailSharp. The browser stores the HttpOnly cookie automatically; JavaScript does not need to read it.</p>
+          <div class="docs-code"><div class="docs-code-heading"><span>JavaScript / fetch</span></div><pre data-copyable aria-label="JavaScript inbox example"><code>const created = await fetch('/api/mailboxes', {
+  method: 'POST',
+  credentials: 'same-origin',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-TMail-Request': '1'
+  },
+  body: JSON.stringify({})
+});
+const inbox = await created.json();
+if (!created.ok) throw new Error(inbox.error || `HTTP ${created.status}`);
+
+const response = await fetch(`/api/mailboxes/${inbox.id}/messages`, {
+  credentials: 'same-origin'
+});
+const result = await response.json();
+if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+console.log(inbox.address, result.messages);</code></pre></div>
+        </details>
+      </section>
+
+      <section id="sessions" class="docs-section" aria-labelledby="sessions-heading">
+        <h2 id="sessions-heading">Sessions &amp; requests</h2>
+        <div class="docs-note"><strong>Your cookie is your inbox access.</strong><p>Every API request uses the private <code>tmailsharp.session</code> cookie. The server creates one if it is missing. Losing it means losing access to your inboxes; an email address or inbox ID alone cannot recover them.</p></div>
+        <ul>
+          <li>Persist cookies between requests. With curl, use both <code>-c</code> and <code>-b</code> with the same file. Keep that file private.</li>
+          <li>For <code>POST</code>, <code>PUT</code>, and <code>DELETE</code>, send <code>X-TMail-Request: 1</code>.</li>
+          <li>For JSON bodies, also send <code>Content-Type: application/json</code>.</li>
+          <li>If you send an <code>Origin</code> header, its scheme, host, and port must match the server. Cross-origin browser access is not enabled; use a server-side client for another website.</li>
+          <li>API responses use <code>Cache-Control: no-store</code>. Dates are UTC strings. Treat all IDs as opaque values.</li>
+        </ul>
+        <p>Inboxes and their messages expire together at <code>expiresAt</code>. Expired inboxes immediately return <code>404</code>, even before background storage cleanup finishes. Creating another inbox does not extend the lifetime of an existing one.</p>
+      </section>
+
+      <section id="inboxes" class="docs-section" aria-labelledby="inboxes-heading">
+        <h2 id="inboxes-heading">Inboxes</h2>
+        <article class="docs-endpoint" id="bootstrap">
+          <h3><span class="docs-method">GET</span><code>/api/bootstrap</code></h3>
+          <p>Get available email domains, this session’s active inboxes, and mailbox limits. This is also a way to establish a session before creating an inbox.</p>
+          <div class="docs-code"><div class="docs-code-heading"><span>200 OK · Mailbox fields</span></div><pre data-copyable aria-label="Bootstrap mailbox fields"><code>{
+  "domains": [
+    { "name": "inbox.example.com", "enabled": true, "createdAt": "2026-10-29T09:00:00Z" }
+  ],
+  "mailboxes": [],
+  "lifetimeMinutes": 60,
+  "maxMessageBytes": 5242880,
+  "maxMailboxes": 10
+}</code></pre></div>
+          <p>Only mailbox-related fields are shown above; other response fields can be ignored. <code>mailboxes</code> contains the same inbox objects returned on creation. An empty <code>domains</code> array means no domains are currently available for new inboxes.</p>
+        </article>
+        <article class="docs-endpoint" id="create-inbox">
+          <h3><span class="docs-method docs-method-post">POST</span><code>/api/mailboxes</code></h3>
+          <p>Create an inbox. Returns <code>201 Created</code>, an inbox object, and a <code>Location</code> header identifying the inbox. Use <code>/messages</code> to list its mail; there is no GET endpoint at the bare inbox URL.</p>
+          <div class="docs-code"><div class="docs-code-heading"><span>JSON request body</span></div><pre data-copyable aria-label="Create inbox request"><code>{ "localPart": "my-test-inbox", "domain": "inbox.example.com" }</code></pre></div>
+          <div class="docs-table-wrap"><table><caption>Creation fields</caption><thead><tr><th>Field</th><th>Type</th><th>Behavior</th></tr></thead><tbody>
+            <tr><td><code>localPart</code></td><td>string or null</td><td>Optional. Omit, send null, or leave blank for a random name.</td></tr>
+            <tr><td><code>domain</code></td><td>string or null</td><td>Optional. Use an enabled domain from <code>/api/bootstrap</code>. If omitted, null, or blank, the first available domain is used.</td></tr>
+          </tbody></table></div>
+          <p>Custom names are trimmed and lowercased. They must be 3–40 ASCII letters, digits, dots, underscores, or hyphens, starting and ending with a letter or digit. Consecutive dots and reserved address names are rejected.</p>
+          <p>A reserved address or a full session returns <code>409</code>. Recently deleted or expired addresses can remain reserved; choose another name if needed.</p>
+        </article>
+        <article class="docs-endpoint" id="delete-inbox">
+          <h3><span class="docs-method docs-method-delete">DELETE</span><code>/api/mailboxes/{id}</code></h3>
+          <p>Delete an inbox owned by this session and all its messages and attachments. Returns <code>204 No Content</code>. This cannot be undone and does not release its address reservation early.</p>
+          <div class="docs-code"><div class="docs-code-heading"><span>Bash / curl · Uses the quickstart variables</span></div><pre data-copyable aria-label="Delete inbox command"><code>curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+  -X DELETE -H 'X-TMail-Request: 1' \
+  "$BASE_URL/api/mailboxes/$MAILBOX_ID"</code></pre></div>
+        </article>
+      </section>
+
+      <section id="messages" class="docs-section" aria-labelledby="messages-heading">
+        <h2 id="messages-heading">Messages &amp; attachments</h2>
+        <p>Use the inbox’s <code>id</code> for <code>{id}</code>, the message’s <code>id</code> for <code>{messageId}</code>, and an attachment’s <code>id</code> for <code>{attachmentId}</code>. Every request requires the owning session cookie.</p>
+        <article class="docs-endpoint" id="list-messages">
+          <h3><span class="docs-method">GET</span><code>/api/mailboxes/{id}/messages</code></h3>
+          <p>Returns <code>200 OK</code> with <code>{ "mailbox": { ... }, "messages": [ ... ] }</code>. Messages are newest first, with no pagination. An inbox with no mail returns an empty array.</p>
+          <div class="docs-code"><div class="docs-code-heading"><span>Example item in messages</span></div><pre data-copyable aria-label="Message summary response"><code>{
+  "id": "d547981cd15a418181675b53b60fc6cf",
+  "sender": "hello@example.com",
+  "senderName": "Example sender",
+  "subject": "Your verification code",
+  "preview": "Your code is 482 916.",
+  "receivedAt": "2026-10-29T10:05:00Z",
+  "isRead": false,
+  "attachmentCount": 1
+}</code></pre></div>
+          <p>Summaries do not contain message bodies or attachment contents. Poll at a reasonable interval, such as every six seconds, and stop when the inbox expires.</p>
+        </article>
+        <article class="docs-endpoint" id="read-message">
+          <h3><span class="docs-method">GET</span><code>/api/mailboxes/{id}/messages/{messageId}</code></h3>
+          <p>Read a message and mark it as read. Returns <code>200 OK</code> with the following shape:</p>
+          <div class="docs-code"><div class="docs-code-heading"><span>Example message detail</span></div><pre data-copyable aria-label="Message detail response"><code>{
+  "id": "d547981cd15a418181675b53b60fc6cf",
+  "sender": "hello@example.com",
+  "senderName": "Example sender",
+  "recipient": "quiet.otter.4829@inbox.example.com",
+  "subject": "Your verification code",
+  "textBody": "Your code is 482 916.",
+  "htmlBody": "&lt;p&gt;Your code is &lt;strong&gt;482 916&lt;/strong&gt;.&lt;/p&gt;",
+  "receivedAt": "2026-10-29T10:05:00Z",
+  "isRead": true,
+  "attachments": [
+    { "id": "48d75ef667da4dd1b325c7539ad5b925", "fileName": "hello.txt", "size": 52 }
+  ]
+}</code></pre></div>
+          <p><code>htmlBody</code> is sanitized; scripts, remote images, forms, and embedded content are removed. Render email in an isolated frame or show <code>textBody</code> as text. Attachment <code>size</code> is in bytes; file content comes from the download endpoint.</p>
+          <div class="docs-code"><div class="docs-code-heading"><span>Bash / curl · Uses the quickstart variables</span></div><pre data-copyable aria-label="Read message command"><code>MESSAGE_ID='PASTE_MESSAGE_ID'
+curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+  "$BASE_URL/api/mailboxes/$MAILBOX_ID/messages/$MESSAGE_ID"</code></pre></div>
+        </article>
+        <article class="docs-endpoint" id="message-html">
+          <h3><span class="docs-method">GET</span><code>/api/mailboxes/{id}/messages/{messageId}/content</code></h3>
+          <p>Returns a complete HTML document with <code>Content-Type: text/html; charset=utf-8</code> and a restrictive Content Security Policy, suitable for a same-origin iframe. Add <code>?theme=light</code> for light styling; the default is dark. This endpoint does not mark the message as read.</p>
+        </article>
+        <article class="docs-endpoint" id="download-attachment">
+          <h3><span class="docs-method">GET</span><code>/api/mailboxes/{id}/messages/{messageId}/attachments/{attachmentId}</code></h3>
+          <p>Download a file. Returns binary bytes as <code>application/octet-stream</code> with <code>Content-Disposition: attachment</code> and the original filename. Attachment metadata and downloads are only available to the inbox owner.</p>
+          <div class="docs-code"><div class="docs-code-heading"><span>Bash / curl · Uses the variables above</span></div><pre data-copyable aria-label="Download attachment command"><code>ATTACHMENT_ID='PASTE_ATTACHMENT_ID'
+curl --fail-with-body -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+  -o attachment.bin \
+  "$BASE_URL/api/mailboxes/$MAILBOX_ID/messages/$MESSAGE_ID/attachments/$ATTACHMENT_ID"</code></pre></div>
+        </article>
+        <article class="docs-endpoint" id="delete-message">
+          <h3><span class="docs-method docs-method-delete">DELETE</span><code>/api/mailboxes/{id}/messages/{messageId}</code></h3>
+          <p>Delete a message and its attachments from an owned inbox. Send <code>X-TMail-Request: 1</code>. Returns <code>204 No Content</code>.</p>
+        </article>
+      </section>
+
+      <section id="errors" class="docs-section" aria-labelledby="errors-heading">
+        <h2 id="errors-heading">Errors &amp; limits</h2>
+        <p>Application errors return JSON with an <code>error</code> message. Check the HTTP status before using a response. Framework errors, including malformed JSON or unsupported content types, may have a different body or no body.</p>
+        <div class="docs-code"><div class="docs-code-heading"><span>Example · 404 Not Found</span></div><pre data-copyable aria-label="Error response"><code>{ "error": "This inbox has expired or is no longer available." }</code></pre></div>
+        <div class="docs-table-wrap"><table><caption>HTTP status reference</caption><thead><tr><th>Status</th><th>Meaning</th></tr></thead><tbody>
+          <tr><td><code>200</code></td><td>Request completed. The body is JSON, HTML, or file bytes, depending on the endpoint.</td></tr>
+          <tr><td><code>201</code></td><td>Inbox created.</td></tr>
+          <tr><td><code>204</code></td><td>Delete completed. There is no response body to parse.</td></tr>
+          <tr><td><code>400</code></td><td>Invalid address, unavailable domain, or invalid request body.</td></tr>
+          <tr><td><code>403</code></td><td>Missing <code>X-TMail-Request: 1</code> or an Origin that does not match the server.</td></tr>
+          <tr><td><code>404</code></td><td>Inbox expired, wrong session, or missing message or attachment.</td></tr>
+          <tr><td><code>409</code></td><td>Address reserved or active inbox limit reached.</td></tr>
+          <tr><td><code>413</code> / <code>415</code></td><td>Request body too large or unsupported content type.</td></tr>
+          <tr><td><code>429</code></td><td>Too many requests from this IP. Wait up to one minute before retrying.</td></tr>
+          <tr><td><code>500</code></td><td>Server error. Avoid repeatedly retrying inbox creation without checking your session’s inbox list.</td></tr>
+          <tr><td><code>503</code></td><td>Address generation is temporarily unavailable.</td></tr>
+        </tbody></table></div>
+        <h3 class="docs-subheading">Request limits</h3>
+        <p>Requests are limited per client IP: most mailbox requests allow <strong>180 per minute</strong> and inbox creation allows <strong>12 per minute</strong>. On <code>429</code>, wait up to one minute before trying again.</p>
+        <p>JSON request bodies are limited to <strong>32 KiB</strong>. Check <code>/api/bootstrap</code> for the current inbox lifetime, active inbox limit, and incoming message size limit.</p>
+      </section>
+      <footer class="docs-footer"><a href="/">Back to your inbox <span aria-hidden="true">↗</span></a><a href="#main-content">Back to top ↑</a></footer>
+    </main>
+  </div>
+  <div id="copy-status" class="docs-sr-only" role="status" aria-live="polite"></div>
+</body>
+</html>

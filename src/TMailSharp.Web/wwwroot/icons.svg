@@ -20,4 +20,5 @@
 <symbol id="attachment" viewBox="0 0 24 24"><path d="m8 13 7-7a3 3 0 0 1 4 4L9 20a5 5 0 0 1-7-7L13 2M5 16l10-10"/></symbol>
 <symbol id="check" viewBox="0 0 24 24"><path d="m5 12 4 4L20 5"/></symbol>
 <symbol id="mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 5 10 8L22 5"/></symbol>
+<symbol id="code" viewBox="0 0 24 24"><path d="m8 6-6 6 6 6m8-12 6 6-6 6M14 3l-4 18"/></symbol>
 </svg>

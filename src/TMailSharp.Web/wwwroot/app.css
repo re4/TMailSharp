@@ -767,7 +767,7 @@ main {
   gap:19px;
   align-items:center;
 }
-.page-footer button {
+.page-footer button,.page-footer a {
   font-size:9px;
   color:var(--muted);
   padding:0;
@@ -1684,7 +1684,7 @@ main {
   .page-footer>span {
     max-width:100px;
   }
-  .page-footer button {
+  .page-footer button,.page-footer a {
     font-size:8px;
   }
   .page-footer>div {

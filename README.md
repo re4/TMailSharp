@@ -177,6 +177,8 @@ The website and HTTP API can run behind Cloudflare Tunnel. Keep the mail server'
 
 ## HTTP API
 
+Visitors can open **`/docs/`** on any running TMailSharp server for the public mailbox API documentation. It is linked from the inbox sidebar and footer, with curl and JavaScript examples, response fields, session requirements, and status codes. No sign-in is required to read it.
+
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/bootstrap` | Available domains and the current session's inboxes |
@@ -200,7 +202,7 @@ Omit `localPart`, or set it to `null`, for a random address.
 
 The API uses a private session cookie. Integrations must retain that cookie between requests. Non-GET requests require the header `X-TMail-Request: 1`; JSON bodies also require `Content-Type: application/json`. Cross-origin access is not enabled. There are no API-key accounts or outbound-mail endpoints.
 
-See the [complete API reference](docs/API.md) for response fields, administrator endpoints, and status codes.
+See the [mailbox API reference](docs/API.md) for response fields and status codes.
 
 ## Configuration
 

@@ -1,4 +1,6 @@
-# HTTP API
+# Mailbox API
+
+The public, browser-friendly mailbox reference is available at **`/docs/`** on your running server, linked from the inbox sidebar and footer. It includes copyable curl and JavaScript examples and does not require sign-in to read.
 
 All responses containing mailbox data use `Cache-Control: no-store`. An opaque `tmailsharp.session` HttpOnly cookie identifies the browser session. Creating an inbox without an existing cookie sets one; persist it for subsequent requests.
 
@@ -8,7 +10,7 @@ Every non-GET request requires `X-TMail-Request: 1`. JSON request bodies require
 
 | Method | Path | Behavior |
 | --- | --- | --- |
-| GET | `/api/bootstrap` | Available domains, this browser's active inboxes, and UI settings |
+| GET | `/api/bootstrap` | Available domains, this session's active inboxes, and mailbox limits |
 | POST | `/api/mailboxes` | Create an inbox; body `{ "localPart": null, "domain": "drop.localhost" }` |
 | DELETE | `/api/mailboxes/{id}` | Delete an owned inbox and its messages |
 | GET | `/api/mailboxes/{id}/messages` | Message summaries, newest first |
@@ -16,37 +18,22 @@ Every non-GET request requires `X-TMail-Request: 1`. JSON request bodies require
 | GET | `/api/mailboxes/{id}/messages/{messageId}/content` | Sanitized HTML with restrictive iframe CSP |
 | DELETE | `/api/mailboxes/{id}/messages/{messageId}` | Delete an owned message |
 | GET | `/api/mailboxes/{id}/messages/{messageId}/attachments/{attachmentId}` | Download an owned attachment |
-| POST | `/api/mailboxes/{id}/sample` | Deliver a sample MIME message when development samples are enabled |
 
 An inbox object includes `id`, `address`, `domain`, `createdAt`, and `expiresAt`. IDs are opaque. Neither an address nor a mailbox ID grants access without the owning session cookie. There is no public lookup by email address.
 
-Use `localPart: null` or omit it for a random name. Custom names contain 3–40 lowercase ASCII letters, digits, dots, underscores, or hyphens. Consecutive dots and reserved administrative names are rejected. Domains must already be enabled in the server.
+Use `localPart: null` or omit it for a random name. Custom names contain 3–40 lowercase ASCII letters, digits, dots, underscores, or hyphens and must start and end with a letter or digit. Consecutive dots and reserved address names are rejected. Use an available domain from `/api/bootstrap`.
 
 Message summaries include `id`, `sender`, `senderName`, `subject`, `preview`, `receivedAt`, `isRead`, and `attachmentCount`. Details include `textBody`, sanitized `htmlBody`, `recipient`, and attachment metadata (`id`, `fileName`, `size`). Binary attachments are only returned by their download endpoint.
-
-## Administration
-
-| Method | Path | Behavior |
-| --- | --- | --- |
-| POST | `/api/admin/login` | Body `{ "password": "..." }`; sets signed admin cookie |
-| POST | `/api/admin/logout` | Remove admin cookie |
-| GET | `/api/admin/overview` | Active counts, domains, SMTP status, retention settings |
-| PUT | `/api/admin/domains` | Add/update domain; body `{ "name": "inbox.example.com", "enabled": true }` |
-
-All admin endpoints other than login require the signed `tmailsharp.admin` cookie. Authentication is independent of inbox ownership. The admin API exposes aggregate counts and domain configuration, not message bodies.
 
 ## Status codes
 
 - `201`: inbox created.
-- `204`: delete/logout completed.
+- `204`: delete completed.
 - `400`: invalid address, domain, or request body.
-- `401`: administrator authentication required or incorrect password.
 - `403`: missing custom request header or mismatched origin.
 - `404`: unavailable/expired inbox, wrong owner, or missing message/attachment.
-- `409`: address reserved, inbox limit reached, or full inbox during sample delivery.
+- `409`: address reserved or inbox limit reached.
 - `429`: per-IP rate limit; wait approximately one minute.
-- `503`: admin not configured or address generation unavailable.
+- `503`: address generation temporarily unavailable.
 
 Application errors use `{ "error": "Human-readable explanation" }`. Framework validation may return its standard error response.
-
-`GET /health` returns `200 { "status": "healthy" }` when MongoDB responds and the configured SMTP receiver is listening. It returns an error status otherwise. When SMTP is explicitly disabled, only MongoDB is required.
