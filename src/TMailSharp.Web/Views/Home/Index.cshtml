@@ -42,4 +42,4 @@
   <dialog id="message-dialog" class="message-modal"><div class="message-modal-toolbar"><button class="text-button" data-close><svg><use href="/icons.svg#back"/></svg>Back to inbox</button><button id="delete-message" class="icon-button danger-subtle" aria-label="Delete message"><svg><use href="/icons.svg#trash"/></svg></button></div><div class="message-detail-header"><h2 id="detail-subject"></h2><div class="sender-detail"><span id="detail-avatar" class="sender-avatar"></span><div><strong id="detail-sender"></strong><span id="detail-address"></span></div><time id="detail-date"></time></div></div><div class="message-tabs"><button id="html-tab" class="active">Formatted</button><button id="text-tab">Plain text</button><span><svg><use href="/icons.svg#shield"/></svg>Remote content blocked</span></div><div id="detail-content" class="detail-content"></div><div id="detail-attachments" class="detail-attachments"></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-@section Scripts { <script src="/app.js" type="module"></script> }
+@section Scripts { <script src="/app.js" asp-append-version="true" type="module"></script> }

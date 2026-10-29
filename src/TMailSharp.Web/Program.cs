@@ -90,7 +90,13 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
-    options.OnRejected = async (context, ct) => await context.HttpContext.Response.WriteAsJsonAsync(new { error = "Too many requests. Try again in a minute." }, ct);
+    options.OnRejected = async (context, ct) =>
+    {
+        var seconds = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
+            ? Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds)) : 60;
+        context.HttpContext.Response.Headers.RetryAfter = seconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await context.HttpContext.Response.WriteAsJsonAsync(new { error = $"Too many requests. Try again in {seconds} seconds.", retryAfterSeconds = seconds }, ct);
+    };
     foreach (var (policy, permits) in new[] { ("api", 180), ("create", 12), ("login", 10) })
         options.AddPolicy(policy, context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
             new FixedWindowRateLimiterOptions { PermitLimit = permits, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
@@ -120,7 +126,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
     context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src 'self' about:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
-    if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/inbox") || context.Request.Path.StartsWithSegments("/account") || context.Request.Path.StartsWithSegments("/admin"))
+    if (context.Request.Path == "/" || context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/inbox") || context.Request.Path.StartsWithSegments("/account") || context.Request.Path.StartsWithSegments("/admin"))
         context.Response.Headers.CacheControl = "no-store";
     if (context.Request.Path.StartsWithSegments("/inbox") && !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method))
     {

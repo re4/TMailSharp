@@ -14,6 +14,8 @@ Production cookies require HTTPS. The disclosed v1.0 key is revoked on startup i
 
 The UI remembers only the selected mailbox ID and theme in local storage. It never stores authentication tokens there. It polls at six-second intervals while visible. Mail content is inserted as text or served in a sandboxed iframe after server-side allowlist sanitization. Attachments always download as `application/octet-stream` with a filename and `nosniff`.
 
+The homepage is not cached, and its scripts and styles use content-versioned URLs. The server supplies the website mailbox route prefix in page metadata so the client uses the cookie-protected `/inbox` routes, including for guests. Creation is limited to 12 requests per minute per client IP, independent of cookie changes, with the configured active-inbox cap per guest owner. Rate-limit responses include `Retry-After` and `retryAfterSeconds`.
+
 ## MongoDB
 
 | Collection | Contents | Indexes |

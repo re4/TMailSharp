@@ -209,6 +209,8 @@ Omit `localPart`, or set it to `null`, for a random address.
 
 Start with `/api/bootstrap`, using the bearer key. JSON bodies also require `Content-Type: application/json`; API requests do not require cookies or CSRF tokens. Set `permanent: true` to keep an address. Store keys in server-side secret settings, never in URLs or public browser code. Cross-origin browser access is not enabled. There are no outbound-mail endpoints. The website continues to support guest inboxes through separate cookie-protected routes.
 
+Guests can create and use temporary addresses on the website without an account or API key. Website creation requests are limited to 12 per minute per client IP, even across fresh guest cookies, with 10 active inboxes per guest session by default. Mutations require the session's antiforgery token. Permanent addresses and API keys still require an account.
+
 See the [mailbox API reference](docs/API.md) for response fields and status codes.
 
 ## Configuration
