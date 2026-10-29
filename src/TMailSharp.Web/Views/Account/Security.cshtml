@@ -1,7 +1,7 @@
 @model SecurityViewModel
 @{ ViewData["Title"] = "Account security"; }
 <main class="account-shell"><div class="eyebrow">@User.Identity?.Name</div><h1>Keep your account secure.</h1>
-<section class="account-card"><h2>Two-factor authentication</h2>
+<section id="two-factor" class="account-card"><h2>Two-factor authentication</h2>
 @if (Model.TwoFactorEnabled)
 {
   <p>Authenticator enabled. @Model.RecoveryCodesRemaining recovery codes remain.</p>
@@ -21,7 +21,7 @@ else
   </form>
 }
 </section>
-<section class="account-card"><h2>Passkeys &amp; YubiKeys</h2><p>Sign in using a FIDO2 security key, Windows Hello, or a compatible device. Your device will ask for its PIN or biometrics. Passkey sign-in replaces the password and authenticator-code steps.</p>
+<section id="passkeys" class="account-card"><h2>Passkeys &amp; YubiKeys</h2><p>Sign in using a FIDO2 security key, Windows Hello, or a compatible device. Your device will ask for its PIN or biometrics. Passkey sign-in replaces the password and authenticator-code steps.</p>
 @foreach (var passkey in Model.Passkeys)
 {
   <details class="key-row"><summary>@passkey.Name</summary><form action="/account/passkeys/remove" method="post" class="account-form">@Html.AntiForgeryToken()
@@ -34,7 +34,7 @@ else
   <label for="key-password">Current password</label><input id="key-password" type="password" class="form-input" autocomplete="current-password" required>
   <button class="primary-button">Add a passkey or security key</button>
 </form><p id="passkey-status" role="status" class="form-error"></p></section>
-<section class="account-card"><h2>Change password</h2><form action="/account/password" method="post" class="account-form">@Html.AntiForgeryToken()
+<section id="password" class="account-card"><h2>Change password</h2><form action="/account/password" method="post" class="account-form">@Html.AntiForgeryToken()
   <label>Current password<input name="CurrentPassword" class="form-input" type="password" autocomplete="current-password" required></label>
   <label>New password<input name="NewPassword" class="form-input" type="password" autocomplete="new-password" minlength="12" required></label>
   <label>Confirm new password<input name="ConfirmPassword" class="form-input" type="password" autocomplete="new-password" minlength="12" required></label>

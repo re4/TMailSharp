@@ -1,0 +1,65 @@
+@{
+    var inbox = ViewData["InboxLayout"] is true;
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    var path = Context.Request.Path;
+    var login = path.StartsWithSegments("/account/login") || path.StartsWithSegments("/account/two-factor");
+    var register = path.StartsWithSegments("/account/register");
+    var administration = path.StartsWithSegments("/admin");
+    var security = signedIn && path.StartsWithSegments("/account") && !login && !register;
+}
+<aside id="site-sidebar" class="sidebar" aria-label="Main navigation" tabindex="-1">
+  <div class="sidebar-heading">
+    <a href="/" class="brand" aria-label="TMailSharp home"><span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 6 8 7 8-7M4 6h16v13H4z"/><path d="m16 3 1-2m3 3 2-1"/></svg></span><span>TMail<span class="brand-light">Sharp</span></span></a>
+    <button id="navigation-close" class="icon-button sidebar-close" type="button" data-close-sidebar aria-label="Close navigation"><svg aria-hidden="true"><use href="/icons.svg#close"/></svg></button>
+  </div>
+  <div class="sidebar-body">
+    <nav aria-label="Mailbox navigation">
+      <div class="nav-section-label">YOUR MAILROOM</div>
+      <a class="nav-link @(inbox ? "active" : "")" href="/" aria-current="@(inbox ? "page" : null)"><svg aria-hidden="true"><use href="/icons.svg#inbox"/></svg><span>Inbox</span>
+        @if (inbox) { <span id="sidebar-count" class="nav-count">0</span> }
+      </a>
+      @if (inbox)
+      {
+        <button class="nav-link" data-dialog="how-dialog"><svg aria-hidden="true"><use href="/icons.svg#spark"/></svg>How it works</button>
+        <button class="nav-link" data-dialog="privacy-dialog"><svg aria-hidden="true"><use href="/icons.svg#shield"/></svg>Privacy &amp; peace of mind</button>
+      }
+      <a class="nav-link" href="/docs/"><svg aria-hidden="true"><use href="/icons.svg#code"/></svg>Mailbox API</a>
+    </nav>
+    @if (inbox)
+    {
+      <section aria-labelledby="addresses-heading">
+        <div class="mailbox-nav-heading"><h2 id="addresses-heading" class="nav-section-label">YOUR ADDRESSES</h2><button id="add-inbox" class="icon-button" aria-label="Create another inbox"><svg aria-hidden="true"><use href="/icons.svg#plus"/></svg></button></div>
+        <div id="mailbox-nav" class="mailbox-nav"><span class="muted small">Setting up your inbox…</span></div>
+      </section>
+    }
+    <nav class="account-navigation" aria-labelledby="account-navigation-heading">
+      <h2 id="account-navigation-heading" class="nav-section-label">YOUR ACCOUNT</h2>
+      @if (signedIn)
+      {
+        <div class="sidebar-profile"><span class="profile-avatar"><svg aria-hidden="true"><use href="/icons.svg#user"/></svg></span><div><strong>@(User.Identity?.Name)</strong><span>@(User.IsInRole("Administrator") ? "Administrator" : "Personal account")</span></div></div>
+        <a class="nav-link @(security ? "active" : "")" href="/account/security" aria-current="@(security ? "page" : null)"><svg aria-hidden="true"><use href="/icons.svg#shield"/></svg>Account security</a>
+        @if (security)
+        {
+          <ul class="nav-submenu"><li><a href="/account/security#two-factor">Authenticator</a></li><li><a href="/account/security#passkeys">Passkeys &amp; YubiKeys</a></li><li><a href="/account/security#password">Password</a></li></ul>
+        }
+        @if (User.IsInRole("Administrator"))
+        {
+          <a class="nav-link @(administration ? "active" : "")" href="/admin" aria-current="@(administration ? "page" : null)"><svg aria-hidden="true"><use href="/icons.svg#settings"/></svg>Administration</a>
+          @if (administration)
+          {
+            <ul class="nav-submenu"><li><a href="/admin#message-retention">Message retention</a></li><li><a href="/admin#email-domains">Email domains</a></li></ul>
+          }
+        }
+        <form action="/account/logout" method="post" class="sidebar-signout">@Html.AntiForgeryToken()<button class="nav-link" type="submit"><svg aria-hidden="true"><use href="/icons.svg#logout"/></svg>Sign out</button></form>
+      }
+      else
+      {
+        <a class="nav-link @(login ? "active" : "")" href="/account/login" aria-current="@(login ? "page" : null)"><svg aria-hidden="true"><use href="/icons.svg#login"/></svg>Sign in</a>
+        <a class="nav-link @(register ? "active" : "")" href="/account/register" aria-current="@(register ? "page" : null)"><svg aria-hidden="true"><use href="/icons.svg#user"/></svg>Create an account</a>
+        <p class="sidebar-hint">Keep your addresses and pick up your mail on any device.</p>
+      }
+    </nav>
+  </div>
+  <div class="sidebar-footer"><span><i class="status-dot"></i> Open source, always.</span></div>
+</aside>
+<button class="sidebar-backdrop" type="button" data-close-sidebar tabindex="-1" aria-label="Close navigation" hidden></button>

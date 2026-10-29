@@ -1,12 +1,12 @@
 @model AdminViewModel
 @{ ViewData["Title"] = "Administration"; }
 <main class="account-shell"><div class="eyebrow">ADMINISTRATION</div><h1>Your mailroom.</h1>
-<section class="account-card"><h2>Message retention</h2><p>Clear messages after this many minutes from receipt. Permanent addresses stay reserved. Changes also apply to existing messages and can remove old mail immediately.</p>
+<section id="message-retention" class="account-card"><h2>Message retention</h2><p>Clear messages after this many minutes from receipt. Permanent addresses stay reserved. Changes also apply to existing messages and can remove old mail immediately.</p>
 <form action="/admin/retention" method="post" class="account-form">@Html.AntiForgeryToken()
   <label for="retention-minutes">Default message lifetime in minutes</label><input id="retention-minutes" name="minutes" type="number" class="form-input" min="1" max="525600" value="@Model.Settings.MessageRetentionMinutes" required>
   <button class="primary-button">Save retention schedule</button>
 </form></section>
-<section class="account-card"><h2>Email domains</h2><p>Deleting a domain stops new inboxes and deliveries. Existing addresses stay reserved and their messages follow the retention schedule.</p>
+<section id="email-domains" class="account-card"><h2>Email domains</h2><p>Deleting a domain stops new inboxes and deliveries. Existing addresses stay reserved and their messages follow the retention schedule.</p>
 @foreach (var domain in Model.Domains)
 {
   <div class="domain-card"><h3>@domain.Name</h3><span>@(domain.Enabled ? "Enabled" : "Disabled")</span>

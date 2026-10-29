@@ -1,30 +1,11 @@
 @{ ViewData["Title"] = "Your inbox"; ViewData["InboxLayout"] = true; }
 
   <div class="app-shell">
-    <aside class="sidebar">
-      <a href="/" class="brand" aria-label="TMailSharp home"><span class="brand-mark"><svg viewBox="0 0 24 24"><path d="m4 6 8 7 8-7M4 6h16v13H4z"/><path d="m16 3 1-2m3 3 2-1"/></svg></span><span>TMail<span class="brand-light">Sharp</span></span></a>
-      <div class="sidebar-body">
-        <div class="nav-section-label">YOUR LITTLE MAILROOM</div>
-        <a class="nav-link active" href="/"><svg><use href="/icons.svg#inbox"/></svg>Inbox<span id="sidebar-count" class="nav-count">0</span></a>
-        <button class="nav-link" data-dialog="how-dialog"><svg><use href="/icons.svg#spark"/></svg>How it works</button>
-        <button class="nav-link" data-dialog="privacy-dialog"><svg><use href="/icons.svg#shield"/></svg>Privacy &amp; peace of mind</button>
-        <a class="nav-link" href="/docs/"><svg><use href="/icons.svg#code"/></svg>Mailbox API</a>
-        <div class="mailbox-nav-heading"><span class="nav-section-label">YOUR ADDRESSES</span><button id="add-inbox" class="icon-button" aria-label="Create another inbox"><svg><use href="/icons.svg#plus"/></svg></button></div>
-        <div id="mailbox-nav" class="mailbox-nav"><span class="muted small">Setting up your inbox…</span></div>
-      </div>
-      <div class="sidebar-note"><span class="note-spark">✳</span><p>Temporary or permanent.<br>Your inbox, your choice.</p><span>Sign in to keep your addresses.</span></div>
-      <div class="sidebar-footer"><span><i class="status-dot"></i> Open source, always.</span><a href="/admin" title="Server administration" aria-label="Server administration"><svg><use href="/icons.svg#settings"/></svg></a></div>
-    </aside>
+    <partial name="_Sidebar" />
 
     <div class="workspace">
-      <header class="topbar"><span class="breadcrumb">Your space <span>/</span> <strong>Your inbox</strong></span><div class="topbar-actions"><div class="account-links">
-@if (User.Identity?.IsAuthenticated == true) {
-  <a href="/account/security">@User.Identity.Name</a>
-  @if (User.IsInRole("Administrator")) { <a href="/admin">Admin</a> }
-  <form action="/account/logout" method="post">@Html.AntiForgeryToken()<button class="text-button">Sign out</button></form>
-} else { <a href="/account/login">Sign in</a><a href="/account/register">Register</a> }
-</div><span class="privacy-chip"><svg><use href="/icons.svg#lock"/></svg>Just for you</span><button id="theme-toggle" class="icon-button" aria-label="Toggle dark mode"><svg><use href="/icons.svg#moon"/></svg></button></div></header>
-      <main>
+      <partial name="_Topbar" />
+      <main id="main-content" tabindex="-1">
         <div id="connection-banner" class="banner" role="status" hidden></div>
         <label class="mobile-mailbox">YOUR INBOXES<select id="mobile-mailbox-select" aria-label="Switch inbox"></select></label>
         <section class="intro"><div class="eyebrow"><span></span> MAKE ROOM FOR THE GOOD STUFF</div><h1>A little less noise.</h1><p>A fresh email address for the things that don’t need your real one.</p></section>

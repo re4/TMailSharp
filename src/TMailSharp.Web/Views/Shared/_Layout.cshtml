@@ -10,25 +10,25 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <script src="/theme.js"></script>
   <link rel="stylesheet" href="/app.css">
-  <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/site.css" asp-append-version="true">
+  <script src="/navigation.js" asp-append-version="true" defer></script>
 </head>
 <body>
-@if (!(ViewData["InboxLayout"] is true))
+<a class="skip-link" href="#main-content">Skip to content</a>
+@if (ViewData["InboxLayout"] is true)
 {
-  <header class="account-header"><a href="/" class="brand">TMail<span class="brand-light">Sharp</span></a>
-    <nav><a href="/">Inbox</a><a href="/docs/">Mailbox API</a>
-      @if (User.Identity?.IsAuthenticated == true)
-      {
-        <a href="/account/security">Account security</a>
-        @if (User.IsInRole("Administrator")) { <a href="/admin">Administration</a> }
-        <form action="/account/logout" method="post">@Html.AntiForgeryToken()<button class="text-button">Sign out</button></form>
-      }
-      else { <a href="/account/login">Sign in</a><a href="/account/register">Register</a> }
-      <button id="theme-toggle" class="icon-button" aria-label="Switch to light mode"><svg><use href="/icons.svg#sun"/></svg></button>
-    </nav>
-  </header>
+  @RenderBody()
 }
-@RenderBody()
+else
+{
+  <div class="app-shell">
+    <partial name="_Sidebar" />
+    <div class="workspace">
+      <partial name="_Topbar" />
+      <div id="main-content" tabindex="-1">@RenderBody()</div>
+    </div>
+  </div>
+}
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -1,15 +1,78 @@
-.account-header{display:flex;justify-content:space-between;align-items:center;gap:24px;max-width:1100px;padding:28px;margin:auto;border-bottom:1px solid var(--border)}
-.account-header nav{display:flex;align-items:center;flex-wrap:wrap;gap:18px;font-size:12px;color:var(--muted)}
-.account-header form,.inline-form{display:inline-flex}.account-header a:hover,.account-shell a{color:var(--accent)}
-main.account-shell{max-width:950px;padding:48px 28px 80px;line-height:1.7}main.account-shell.narrow{max-width:530px}
-.account-shell h1{font:400 38px/1.2 Georgia,serif;margin:12px 0 20px}.account-shell h2{font-size:22px;margin-bottom:12px}
-.account-shell p{color:var(--muted);margin:14px 0}.account-card{padding:26px;background:var(--card);border:1px solid var(--border);border-radius:14px;margin:26px 0}
-.account-form{display:grid;gap:12px;margin:20px 0}.account-form label{font-size:13px;color:var(--muted)}.account-form label input:not([type=checkbox]){display:block;margin-top:7px;width:100%}
-.account-form small{color:var(--quiet);font-size:12px}.account-form .primary-button,.account-form .secondary-button{width:fit-content;margin-top:8px}
-.check-label{display:flex;gap:10px;align-items:center}.full-width{width:100%}.account-divider{text-align:center;color:var(--quiet);margin:20px}
-.account-shell details{border-top:1px solid var(--border);padding-top:15px;margin-top:22px}.account-shell summary{cursor:pointer;color:var(--accent)}
-.secret-key{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card);padding:20px;border:1px solid var(--border);border-radius:8px;color:var(--accent)}
-.domain-card{border:1px solid var(--border);border-radius:10px;padding:20px;margin:18px 0}.domain-card>span{color:var(--muted);margin-right:15px}
-.account-links{display:flex;gap:12px;align-items:center;font-size:12px}.account-links form{display:inline-flex}.account-links a{color:var(--accent)}
-.validation-summary-valid{display:none}.validation-summary-errors ul{padding-left:20px}.form-error{white-space:normal}
-@media(max-width:660px){.account-header{align-items:flex-start;flex-direction:column;padding:20px}.account-header nav{gap:12px}.account-card{padding:20px}.account-links{font-size:10px;gap:8px}.topbar{height:auto;min-height:64px;flex-wrap:wrap;gap:10px;padding-top:12px;padding-bottom:12px}.account-shell h1{font-size:32px}}
+:root { --sidebar-width: 248px; }
+.skip-link { position: fixed; top: 12px; left: 12px; z-index: 30; padding: 12px 18px; border-radius: 8px; background: var(--accent-fill); color: var(--on-accent); transform: translateY(-160%); }
+.skip-link:focus { transform: translateY(0); }
+.sidebar { width: var(--sidebar-width); padding: 30px 20px 20px; height: 100vh; height: 100dvh; }
+.sidebar-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; }
+.sidebar .brand { font-size: 21px; gap: 9px; }
+.sidebar .brand-mark { width: 34px; height: 34px; }
+.sidebar-body { flex: 1; min-height: 0; overflow-y: auto; padding: 38px 2px 24px; margin: 0 -2px; }
+.sidebar .nav-link { font-size: 12px; min-height: 44px; height: auto; padding: 12px 10px; line-height: 1.4; }
+.sidebar .nav-section-label { font-size: 9px; line-height: 1.5; margin: 0; }
+.account-navigation { margin-top: 32px; padding-top: 26px; border-top: 1px solid var(--border); }
+.sidebar-profile { display: flex; align-items: center; gap: 11px; margin: 18px 8px; min-width: 0; }
+.profile-avatar { display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 36px; border-radius: 11px; background: var(--selected); color: var(--accent); }
+.profile-avatar svg { width: 18px; height: 18px; }
+.sidebar-profile > div { min-width: 0; }
+.sidebar-profile strong { display: block; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.sidebar-profile span:not(.profile-avatar) { display: block; font-size: 10px; color: var(--quiet); margin-top: 4px; }
+.nav-submenu { list-style: none; border-left: 1px solid var(--border); margin: 10px 0 14px 19px; padding: 0 0 0 18px; }
+.nav-submenu a { display: block; padding: 8px 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.nav-submenu a:hover { color: var(--accent); }
+.sidebar-signout { margin-top: 14px; }
+.sidebar-hint { font-size: 11px; line-height: 1.8; color: var(--quiet); margin: 18px 10px 0; }
+.sidebar-footer { flex-shrink: 0; min-height: 34px; }
+.workspace { margin-left: var(--sidebar-width); }
+.topbar { height: 76px; padding: 0 40px; gap: 16px; }
+.topbar-leading { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.breadcrumb { line-height: 1.6; }
+.menu-toggle, .sidebar-close, .sidebar-backdrop { display: none; }
+main.account-shell { max-width: 1000px; padding: 44px 40px 80px; margin: 0 auto; line-height: 1.7; }
+main.account-shell.narrow { max-width: 620px; }
+.account-shell h1 { font: 400 38px/1.2 Georgia, serif; margin: 12px 0 20px; }
+.account-shell h2 { font-size: 22px; margin-bottom: 12px; }
+.account-shell p { color: var(--muted); margin: 14px 0; }
+.account-shell a { color: var(--accent); }
+.account-card { padding: 26px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin: 26px 0; scroll-margin-top: 24px; }
+.account-form { display: grid; gap: 12px; margin: 20px 0; }
+.account-form label { font-size: 13px; color: var(--muted); }
+.account-form label input:not([type=checkbox]) { display: block; margin-top: 7px; width: 100%; }
+.account-form small { color: var(--quiet); font-size: 12px; }
+.account-form .primary-button, .account-form .secondary-button { width: fit-content; max-width: 100%; white-space: normal; text-align: left; margin-top: 8px; }
+.check-label { display: flex; gap: 10px; align-items: center; }
+.full-width { width: 100%; }
+.account-divider { text-align: center; color: var(--quiet); margin: 20px; }
+.account-shell details { border-top: 1px solid var(--border); padding-top: 15px; margin-top: 22px; }
+.account-shell summary { cursor: pointer; color: var(--accent); }
+.secret-key { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--card); padding: 20px; border: 1px solid var(--border); border-radius: 8px; color: var(--accent); }
+.domain-card { border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 18px 0; overflow-wrap: anywhere; }
+.domain-card > span { color: var(--muted); margin-right: 15px; }
+.inline-form { display: inline-flex; }
+.validation-summary-valid { display: none; }
+.validation-summary-errors ul { padding-left: 20px; }
+.form-error { white-space: normal; }
+@media (max-width: 1100px) {
+  :root { --sidebar-width: 224px; }
+  .sidebar { padding-right: 16px; padding-left: 16px; }
+  .topbar { padding-right: 28px; padding-left: 28px; }
+  main.account-shell { padding-right: 28px; padding-left: 28px; }
+}
+@media (max-width: 760px) {
+  .app-shell { display: block; }
+  .workspace { margin-left: 0; }
+  .sidebar { position: relative; inset: auto; width: 100%; height: auto; padding: 24px; display: flex; flex-direction: column; align-items: stretch; border-right: 0; border-bottom: 1px solid var(--border); }
+  .sidebar-body { display: block; padding-top: 26px; }
+  .sidebar-footer { display: flex; padding-top: 17px; border-top: 1px solid var(--border); }
+  .sidebar-footer > span { display: flex; }
+  .sidebar .nav-link { font-size: 13px; }
+  .navigation-ready .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 20; width: min(300px, calc(100vw - 36px)); height: 100vh; height: 100dvh; border-right: 1px solid var(--border); border-bottom: 0; transform: translateX(-100%); visibility: hidden; transition: transform .2s ease, visibility .2s; }
+  .navigation-ready .menu-toggle, .navigation-ready .sidebar-close { display: inline-flex; flex-shrink: 0; }
+  .navigation-ready .sidebar-backdrop:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 19; background: var(--modal-backdrop); cursor: default; }
+  .navigation-open { overflow: hidden; }
+  .navigation-open .sidebar { transform: translateX(0); visibility: visible; }
+  .topbar { height: 68px; padding: 0 18px; }
+  .breadcrumb { font-size: 11px; }
+  .breadcrumb > span { padding: 0 7px; }
+  main.account-shell { padding: 32px 20px 56px; }
+  .account-shell h1 { font-size: 32px; }
+  .account-card { padding: 20px; }
+}
