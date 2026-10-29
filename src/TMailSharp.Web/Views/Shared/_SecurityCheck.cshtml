@@ -1,0 +1,16 @@
+@inject Microsoft.AspNetCore.Mvc.ViewFeatures.IFileVersionProvider FileVersions
+@{
+    var purpose = ViewData["SecurityCheckPurpose"] as string ?? "login";
+    var worker = FileVersions.AddFileVersionToPath(Context.Request.PathBase, Url.Content("~/proof-worker.js"));
+}
+<fieldset id="security-check" class="security-check" data-purpose="@purpose" data-worker="@worker" data-endpoint="@Url.Content("~/account/security-check")">
+  <legend>Security check</legend>
+  <div class="security-check-content">
+    <svg aria-hidden="true"><use href="/icons.svg#shield"/></svg>
+    <div><strong>Quick browser verification</strong><p id="security-check-status" role="status" aria-live="polite">Verify before continuing. This may take a moment on slower devices.</p></div>
+    <button type="button" id="security-check-button" class="secondary-button">Verify</button>
+  </div>
+  <input type="hidden" name="ProofToken" value="">
+  <input type="hidden" name="ProofNonce" value="">
+  <noscript><p>JavaScript is required for this security check. Enable it and reload the page.</p></noscript>
+</fieldset>

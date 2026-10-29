@@ -45,3 +45,17 @@ public sealed class DemoOptions
     public const string Section = "Demo";
     public bool Enabled { get; set; }
 }
+
+public sealed class ApiLimitOptions
+{
+    public const string Section = "ApiLimits";
+    [Range(1, 10000)] public int RequestsPerMinute { get; set; } = 600;
+    [Range(1, 1000)] public int CreatesPerMinute { get; set; } = 60;
+}
+
+public sealed class SecurityCheckOptions
+{
+    public const string Section = "SecurityCheck";
+    [Range(16, 24)] public int Difficulty { get; set; } = 20;
+    [Range(60, 300)] public int LifetimeSeconds { get; set; } = 180;
+}

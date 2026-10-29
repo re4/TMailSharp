@@ -3,13 +3,19 @@ using Microsoft.AspNetCore.Identity;
 
 namespace TMailSharp.Models;
 
-public sealed class RegisterInput
+public class ProofInput
+{
+    [MaxLength(4096)] public string? ProofToken { get; set; }
+    [MaxLength(10)] public string? ProofNonce { get; set; }
+}
+
+public sealed class RegisterInput : ProofInput
 {
     [Required, RegularExpression("^[A-Za-z0-9._-]{3,40}$")] public string UserName { get; set; } = "";
     [Required, MinLength(12), MaxLength(256), DataType(DataType.Password)] public string Password { get; set; } = "";
     [Compare(nameof(Password)), DataType(DataType.Password)] public string ConfirmPassword { get; set; } = "";
 }
-public sealed class LoginInput
+public sealed class LoginInput : ProofInput
 {
     [Required] public string UserName { get; set; } = "";
     [Required, MaxLength(256), DataType(DataType.Password)] public string Password { get; set; } = "";

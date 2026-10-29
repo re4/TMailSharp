@@ -14,7 +14,7 @@ namespace TMailSharp.Controllers;
 
 [Route("account"), EnableRateLimiting("login")]
 public sealed class AccountController(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn,
-    MailboxAccess access, MongoMailStore mail, IOptions<AdminOptions> admin) : Controller
+    MailboxAccess access, MongoMailStore mail, IOptions<AdminOptions> admin, ProofOfWork proof) : Controller
 {
     [HttpGet("register")]
     public IActionResult Register() => View(new RegisterInput());
@@ -22,7 +22,8 @@ public sealed class AccountController(UserManager<ApplicationUser> users, SignIn
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterInput input, CancellationToken ct)
     {
-        input.UserName = input.UserName.Trim();
+        CheckProof(input, "register");
+        input.UserName = input.UserName?.Trim() ?? "";
         if (string.Equals(input.UserName, admin.Value.UserName, StringComparison.OrdinalIgnoreCase))
             ModelState.AddModelError(nameof(input.UserName), "That name is reserved.");
         if (!ModelState.IsValid) return View(input);
@@ -40,6 +41,7 @@ public sealed class AccountController(UserManager<ApplicationUser> users, SignIn
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginInput input, CancellationToken ct)
     {
+        CheckProof(input, "login");
         if (!ModelState.IsValid) return View(input);
         var result = await signIn.PasswordSignInAsync(input.UserName.Trim(), input.Password, false, lockoutOnFailure: true);
         if (result.RequiresTwoFactor) return RedirectToAction(nameof(TwoFactor), new { input.ReturnUrl });
@@ -181,7 +183,12 @@ public sealed class AccountController(UserManager<ApplicationUser> users, SignIn
     }
 
     [HttpPost("passkeys/login-options")]
-    public async Task<IActionResult> PasskeyLoginOptions() => Content(await signIn.MakePasskeyRequestOptionsAsync(null), "application/json");
+    public async Task<IActionResult> PasskeyLoginOptions([FromBody] ProofInput input)
+    {
+        if (!ModelState.IsValid || !proof.TryConsume(input.ProofToken, input.ProofNonce, "login", access.GuestOwner(HttpContext)))
+            return BadRequest(new { error = "Complete the security check and try again." });
+        return Content(await signIn.MakePasskeyRequestOptionsAsync(null), "application/json");
+    }
 
     [HttpPost("passkeys/login")]
     public async Task<IActionResult> PasskeyLogin([FromBody] PasskeyInput input, CancellationToken ct)
@@ -203,6 +210,12 @@ public sealed class AccountController(UserManager<ApplicationUser> users, SignIn
     public IActionResult Denied() { Response.StatusCode = 403; return View(); }
 
     private async Task<ApplicationUser> Current() => await users.GetUserAsync(User) ?? throw new AppException(401, "Sign in again.");
+    private void CheckProof(ProofInput input, string purpose)
+    {
+        if (proof.TryConsume(input.ProofToken, input.ProofNonce, purpose, access.GuestOwner(HttpContext))) return;
+        ModelState.AddModelError("", "Complete a fresh security check and try again.");
+        Response.StatusCode = 400;
+    }
     private async Task<bool> VerifyPassword(ApplicationUser user, string password) => (await signIn.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true)).Succeeded;
     private async Task RefreshSecurity(ApplicationUser user)
     {

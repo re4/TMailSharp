@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using System.Security.Claims;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -17,6 +18,8 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true).AddE
 builder.Services.AddOptions<MongoOptions>().BindConfiguration(MongoOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddOptions<MailOptions>().BindConfiguration(MailOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddOptions<SmtpOptions>().BindConfiguration(SmtpOptions.Section).ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddOptions<ApiLimitOptions>().BindConfiguration(ApiLimitOptions.Section).ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddOptions<SecurityCheckOptions>().BindConfiguration(SecurityCheckOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminOptions.Section));
 builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.Section));
 var configuredKeys = builder.Configuration["DataProtection:KeyDirectory"];
@@ -73,7 +76,10 @@ builder.Services.Configure<IdentityPasskeyOptions>(options =>
 });
 builder.Services.AddAuthorization(options => options.AddPolicy("WebsiteAccount", policy =>
     policy.AddAuthenticationSchemes(IdentityConstants.ApplicationScheme).RequireAuthenticatedUser()));
-builder.Services.AddAuthentication().AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, _ => { });
+builder.Services.AddAuthentication(options => options.DefaultAuthenticateScheme = "WebsiteOrApi")
+    .AddPolicyScheme("WebsiteOrApi", null, options => options.ForwardDefaultSelector = context =>
+        context.Request.Path.StartsWithSegments("/api") ? ApiKeyAuthenticationHandler.SchemeName : IdentityConstants.ApplicationScheme)
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, _ => { });
 builder.Services.AddControllersWithViews(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
 builder.Services.AddAntiforgery(options =>
 {
@@ -97,13 +103,28 @@ builder.Services.AddRateLimiter(options =>
         context.HttpContext.Response.Headers.RetryAfter = seconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
         await context.HttpContext.Response.WriteAsJsonAsync(new { error = $"Too many requests. Try again in {seconds} seconds.", retryAfterSeconds = seconds }, ct);
     };
-    foreach (var (policy, permits) in new[] { ("api", 180), ("create", 12), ("login", 10) })
-        options.AddPolicy(policy, context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
-            new FixedWindowRateLimiterOptions { PermitLimit = permits, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    foreach (var (policy, permits) in new[] { ("api", 180), ("create", 12), ("login", 10), ("challenge", 10) })
+        options.AddPolicy(policy, context =>
+        {
+            var key = "ip:" + (context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+            var limit = permits;
+            if (policy is "api" or "create" && context.Request.Path.StartsWithSegments("/api") &&
+                context.User.Identity?.AuthenticationType == ApiKeyAuthenticationHandler.SchemeName &&
+                context.User.FindFirstValue(ClaimTypes.NameIdentifier) is { } userId)
+            {
+                key = "account:" + userId;
+                var configured = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiLimitOptions>>().Value;
+                limit = policy == "create" ? configured.CreatesPerMinute : configured.RequestsPerMinute;
+            }
+            return RateLimitPartition.GetFixedWindowLimiter(key, _ =>
+                new FixedWindowRateLimiterOptions { PermitLimit = limit, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
+        });
 });
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 65_536);
 builder.Services.AddScoped<MailboxAccess>();
 builder.Services.AddScoped<ApiKeyService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ProofOfWork>();
 builder.Services.AddSingleton<MongoMailStore>();
 builder.Services.AddSingleton<MailProcessor>();
 builder.Services.AddSingleton<SmtpReceiver>();
@@ -125,7 +146,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["Referrer-Policy"] = "no-referrer";
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-    context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src 'self' about:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src 'self' about:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
     if (context.Request.Path == "/" || context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/inbox") || context.Request.Path.StartsWithSegments("/account") || context.Request.Path.StartsWithSegments("/admin"))
         context.Response.Headers.CacheControl = "no-store";
     if (context.Request.Path.StartsWithSegments("/inbox") && !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method))
@@ -154,8 +175,8 @@ app.Use(async (context, next) =>
 });
 app.UseStaticFiles();
 app.UseRouting();
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");

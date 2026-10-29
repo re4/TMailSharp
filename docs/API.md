@@ -44,7 +44,9 @@ Message summaries include `id`, `sender`, `senderName`, `subject`, `preview`, `r
 - `401`: missing, invalid, revoked, or invalidated API key, or an unavailable/locked account.
 - `404`: unavailable/expired inbox, wrong owner, or missing message/attachment.
 - `409`: address reserved or inbox limit reached.
-- `429`: per-IP rate limit; wait approximately one minute.
+- `429`: rate limit reached; wait the number of seconds in `Retry-After` before retrying.
 - `503`: address generation temporarily unavailable.
 
 Application errors use `{ "error": "Human-readable explanation" }`. Framework validation may return its standard error response.
+
+By default, a verified API-key account may make 60 inbox-creation requests per minute and 600 other mailbox requests per minute. All of an account's keys share these limits, regardless of client IP. Invalid or missing keys do not receive the larger quota. Active-inbox limits still apply independently. Rate-limit errors also include `retryAfterSeconds`.

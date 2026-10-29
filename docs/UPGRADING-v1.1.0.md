@@ -17,6 +17,8 @@ The initial account is `Admin__UserName` (default `admin`) with `Admin__Password
 
 The former shared-password admin endpoints are removed. Do not depend on `/api/admin/login`; use the site's Identity sign-in. Administrator page operations require the Administrator role and antiforgery validation.
 
+Login and registration now require the browser's proof-of-work security check, including the beginning of passkey sign-in. JavaScript must be enabled. Challenges expire after three minutes and cannot be reused; a restart requires a fresh check. `SecurityCheck__Difficulty` defaults to 20 leading zero bits. Higher values increase computation, especially on mobile devices, so test changes before applying them to users.
+
 ## HTTPS and security keys
 
 Use HTTPS in production, including correctly forwarded scheme headers from your trusted proxy. The app redirects ordinary HTTP traffic to HTTPS and uses secure host-only account and guest cookies. `/health` remains available locally for readiness checks.
@@ -40,6 +42,8 @@ Deleting a domain stops new inboxes and incoming deliveries for that domain. Exi
 ## API migration
 
 All `/api/*` requests now require `Authorization: Bearer YOUR_API_KEY`, including reads and downloads. Register or sign in on the website, open **API keys**, and create a key with your current password. Copy it once and keep it in your client's secret settings. Cookie-only integrations must migrate to a bearer key; CSRF tokens and `X-TMail-Request` are no longer required for these API requests. The public `/docs/` reference covers mailbox operations only.
+
+Verified keys share account-based rate limits: 60 inbox-creation requests and 600 other mailbox requests per minute by default. Configure `ApiLimits__CreatesPerMinute` and `ApiLimits__RequestsPerMinute` to change these independently. Website guests retain IP limits, and active-inbox caps are unchanged.
 
 Startup adds the API-key table and indexes to an existing Identity database without recreating account tables. Only hashed keys and their metadata are stored. Up to 10 active keys are allowed per account. Revoked keys stop working immediately; account-security changes invalidate existing keys. API keys cannot access account management or administration. The website uses separate cookie/CSRF-protected routes and retains guest inbox support.
 

@@ -52,6 +52,15 @@ main.account-shell.narrow { max-width: 620px; }
 .validation-summary-valid { display: none; }
 .validation-summary-errors ul { padding-left: 20px; }
 .form-error { white-space: normal; }
+.security-check { min-width: 0; padding: 16px; margin: 12px 0 0; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+.security-check legend { padding: 0 6px; font-size: 12px; color: var(--muted); }
+.security-check-content { display: flex; align-items: center; gap: 12px; }
+.security-check-content > svg { color: var(--accent); flex-shrink: 0; }
+.security-check-content > div { flex: 1; min-width: 0; }
+.security-check strong { font-size: 12px; }
+.security-check p { font-size: 11px; line-height: 1.6; margin: 4px 0 0; }
+.account-form .security-check button { margin: 0; flex-shrink: 0; }
+.security-check.verified { border-color: var(--accent); }
 @media (max-width: 1100px) {
   :root { --sidebar-width: 224px; }
   .sidebar { padding-right: 16px; padding-left: 16px; }

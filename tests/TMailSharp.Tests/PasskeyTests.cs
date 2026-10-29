@@ -28,7 +28,7 @@ public sealed partial class MailAppTests
         await client.PostAsync("/account/logout", null);
         await RefreshToken(client);
 
-        var assertionOptions = await Json(await client.PostAsJsonAsync("/account/passkeys/login-options", new { }));
+        var assertionOptions = await Json(await client.PostAsJsonAsync("/account/passkeys/login-options", await SolveCheck(client, "login")));
         var clientData = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { type = "webauthn.get", challenge = assertionOptions.GetProperty("challenge").GetString(), origin = "https://localhost", crossOrigin = false }));
         var authData = SHA256.HashData(Encoding.UTF8.GetBytes("localhost")).Concat(new byte[] { 5, 0, 0, 0, 1 }).ToArray();
         var signature = key.SignData(authData.Concat(SHA256.HashData(clientData)).ToArray(), HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);

@@ -217,12 +217,13 @@ curl --fail-with-body -sS -H "Authorization: Bearer $TMAIL_API_KEY" \
           <tr><td><code>404</code></td><td>Inbox expired, wrong account, or missing message or attachment.</td></tr>
           <tr><td><code>409</code></td><td>Address reserved or active inbox limit reached.</td></tr>
           <tr><td><code>413</code> / <code>415</code></td><td>Request body too large or unsupported content type.</td></tr>
-          <tr><td><code>429</code></td><td>Too many requests from this IP. Wait up to one minute before retrying.</td></tr>
+          <tr><td><code>429</code></td><td>Rate limit reached. Wait the number of seconds in the <code>Retry-After</code> header before retrying.</td></tr>
           <tr><td><code>500</code></td><td>Server error. Avoid repeatedly retrying inbox creation without checking your account’s inbox list.</td></tr>
           <tr><td><code>503</code></td><td>Address generation is temporarily unavailable.</td></tr>
         </tbody></table></div>
         <h3 class="docs-subheading">Request limits</h3>
-        <p>Requests are limited per client IP: most mailbox requests allow <strong>180 per minute</strong> and inbox creation allows <strong>12 per minute</strong>. On <code>429</code>, wait up to one minute before trying again.</p>
+        <p>Verified API keys allow <strong>600 mailbox requests per minute</strong> and a separate <strong>60 inbox-creation requests per minute</strong> by default. All keys for an account share its limits, even across different client IPs. Invalid or missing keys do not get the larger quota. Active-inbox limits apply separately.</p>
+        <p>On <code>429</code>, wait the number of seconds in <code>Retry-After</code> before trying again. The error body also includes <code>retryAfterSeconds</code>.</p>
         <p>JSON request bodies are limited to <strong>64 KiB</strong>. Check <code>/api/bootstrap</code> for the current inbox lifetime, active inbox limit, and incoming message size limit.</p>
       </section>
       <footer class="docs-footer"><a href="/">Back to your inbox <span aria-hidden="true">↗</span></a><a href="#main-content">Back to top ↑</a></footer>

@@ -185,6 +185,8 @@ Visitors can open **`/docs/`** for the public mailbox API documentation, with cu
 
 Register or sign in, then open **API keys** in the sidebar. Confirm your password to create a named key and copy it immediately; the full key is shown only once. Send `Authorization: Bearer YOUR_API_KEY` on every API request. Keys access only their account's mailboxes and cannot administer the server. Users can revoke them at any time; password or account-security changes invalidate existing keys.
 
+Verified API keys allow 60 inbox-creation requests per minute and 600 other mailbox requests per minute by default, shared by all keys for the same account. Guests keep the lower IP-based website limits. Active-inbox limits apply separately.
+
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/bootstrap` | Available domains and the key owner's inboxes |
@@ -211,6 +213,8 @@ Start with `/api/bootstrap`, using the bearer key. JSON bodies also require `Con
 
 Guests can create and use temporary addresses on the website without an account or API key. Website creation requests are limited to 12 per minute per client IP, even across fresh guest cookies, with 10 active inboxes per guest session by default. Mutations require the session's antiforgery token. Permanent addresses and API keys still require an account.
 
+Login and registration include a local proof-of-work security check. Select **Verify**, or submit the form to run it automatically. The browser does bounded work in a background worker; the server checks a signed, short-lived, single-use answer before checking the password or creating an account. This adds a cost to automation without a third-party CAPTCHA service. It does not prove that a visitor is human; IP limits, account lockout, and optional two-factor authentication remain important.
+
 See the [mailbox API reference](docs/API.md) for response fields and status codes.
 
 ## Configuration
@@ -224,6 +228,10 @@ TMailSharp uses ASP.NET Core configuration. Environment variables use `__` in pl
 | `Mail__LifetimeMinutes` | `60` | New inbox lifetime; 5–1440 minutes |
 | `Mail__MaxMailboxesPerSession` | `10` | Active inbox limit per browser session |
 | `Mail__MaxMailboxesPerAccount` | `25` | Active inbox limit per registered account |
+| `ApiLimits__CreatesPerMinute` | `60` | Creation requests per minute per API-key account |
+| `ApiLimits__RequestsPerMinute` | `600` | Other mailbox requests per minute per API-key account |
+| `SecurityCheck__Difficulty` | `20` | Leading zero bits required by the login/registration proof; 16–24 |
+| `SecurityCheck__LifetimeSeconds` | `180` | Lifetime of a browser security challenge; 60–300 seconds |
 | `Mail__MessageRetentionMinutes` | `60` | Initial default message retention; afterward managed in `/admin` |
 | `Mail__MaxMessageBytes` | `5242880` | Raw MIME size limit; 5 MiB |
 | `Mail__MaxMessagesPerMailbox` | `100` | Stored message limit per inbox |

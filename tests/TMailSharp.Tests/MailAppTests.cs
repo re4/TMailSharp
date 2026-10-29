@@ -43,6 +43,7 @@ public sealed partial class MailAppTests : IAsyncLifetime
                 ["Smtp:CertificatePath"] = "",
                 ["Admin:Password"] = AdminPassword,
                 ["Demo:Enabled"] = "true",
+                ["SecurityCheck:Difficulty"] = "16",
                 ["Logging:LogLevel:Microsoft.AspNetCore.Identity"] = "Debug",
                 ["DataProtection:KeyDirectory"] = Path.Combine(Path.GetTempPath(), "tmailsharp-test-keys"),
                 ["ConnectionStrings:Identity"] = $"Data Source={_identityFile};Pooling=False"
@@ -75,8 +76,15 @@ public sealed partial class MailAppTests : IAsyncLifetime
         client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", bootstrap.GetProperty("csrfToken").GetString());
     }
 
-    private static Task<HttpResponseMessage> Form(HttpClient client, string path, params (string Key, string Value)[] values) =>
-        client.PostAsync(path, new FormUrlEncodedContent(values.Select(v => new KeyValuePair<string, string>(v.Key, v.Value))));
+    private static async Task<HttpResponseMessage> Form(HttpClient client, string path, params (string Key, string Value)[] values)
+    {
+        if (path is "/account/login" or "/account/register")
+        {
+            var proof = await SolveCheck(client, path.EndsWith("register", StringComparison.Ordinal) ? "register" : "login");
+            values = [.. values, ("ProofToken", proof.ProofToken!), ("ProofNonce", proof.ProofNonce!)];
+        }
+        return await client.PostAsync(path, new FormUrlEncodedContent(values.Select(v => new KeyValuePair<string, string>(v.Key, v.Value))));
+    }
 
     private static async Task Login(HttpClient client, string name, string password)
     {

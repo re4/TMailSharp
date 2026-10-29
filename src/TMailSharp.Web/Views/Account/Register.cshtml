@@ -1,5 +1,5 @@
 @model RegisterInput
-@{ ViewData["Title"] = "Create an account"; }
+@{ ViewData["Title"] = "Create an account"; ViewData["SecurityCheckPurpose"] = "register"; }
 <main class="account-shell narrow"><div class="eyebrow">YOUR OWN MAILROOM</div><h1>Keep your address.</h1>
 <p>Create an account to reserve permanent email addresses and access your inboxes across devices. Messages are cleared on the service’s retention schedule.</p>
 <form action="/account/register" method="post" class="account-form">
@@ -9,6 +9,8 @@
   <label asp-for="Password">Password</label><input asp-for="Password" class="form-input" autocomplete="new-password" required minlength="12">
   <small>Use at least 12 characters. Keep it unique to this site.</small>
   <label asp-for="ConfirmPassword">Confirm password</label><input asp-for="ConfirmPassword" class="form-input" autocomplete="new-password" required>
+  <partial name="_SecurityCheck" />
   <button class="primary-button">Create account</button>
 </form><p>Already registered? <a href="/account/login">Sign in</a>.</p>
 <p class="muted small">No email recovery service is configured. Keep your password and any two-factor recovery codes safe.</p></main>
+@section Scripts { <script src="/account.js" asp-append-version="true" type="module"></script> }
