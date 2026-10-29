@@ -21,6 +21,8 @@
 .sidebar-signout { margin-top: 14px; }
 .sidebar-hint { font-size: 11px; line-height: 1.8; color: var(--quiet); margin: 18px 10px 0; }
 .sidebar-footer { flex-shrink: 0; min-height: 34px; }
+.sidebar-footer .source-link { display: inline-flex; align-items: center; gap: 7px; }
+.sidebar-footer .source-link:hover { color: var(--accent); }
 .workspace { margin-left: var(--sidebar-width); }
 .topbar { height: 76px; padding: 0 40px; gap: 16px; }
 .topbar-leading { display: flex; align-items: center; gap: 14px; min-width: 0; }
