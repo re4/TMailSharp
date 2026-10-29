@@ -124,7 +124,7 @@ wait_until_ready() {
     fi
     if curl --fail --silent --max-time 3 --header "Host: $hostname" "$url/health" |
       grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'; then
-      if curl --fail --silent --max-time 3 --header "Host: $hostname" "$url/app.js" |
+      if curl --fail --silent --max-time 3 --header "Host: $hostname" --header 'X-Forwarded-Proto: https' "$url/app.js" |
         grep -q 'initializeInbox'; then
         return 0
       fi

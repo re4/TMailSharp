@@ -1,0 +1,15 @@
+.account-header{display:flex;justify-content:space-between;align-items:center;gap:24px;max-width:1100px;padding:28px;margin:auto;border-bottom:1px solid var(--border)}
+.account-header nav{display:flex;align-items:center;flex-wrap:wrap;gap:18px;font-size:12px;color:var(--muted)}
+.account-header form,.inline-form{display:inline-flex}.account-header a:hover,.account-shell a{color:var(--accent)}
+main.account-shell{max-width:950px;padding:48px 28px 80px;line-height:1.7}main.account-shell.narrow{max-width:530px}
+.account-shell h1{font:400 38px/1.2 Georgia,serif;margin:12px 0 20px}.account-shell h2{font-size:22px;margin-bottom:12px}
+.account-shell p{color:var(--muted);margin:14px 0}.account-card{padding:26px;background:var(--card);border:1px solid var(--border);border-radius:14px;margin:26px 0}
+.account-form{display:grid;gap:12px;margin:20px 0}.account-form label{font-size:13px;color:var(--muted)}.account-form label input:not([type=checkbox]){display:block;margin-top:7px;width:100%}
+.account-form small{color:var(--quiet);font-size:12px}.account-form .primary-button,.account-form .secondary-button{width:fit-content;margin-top:8px}
+.check-label{display:flex;gap:10px;align-items:center}.full-width{width:100%}.account-divider{text-align:center;color:var(--quiet);margin:20px}
+.account-shell details{border-top:1px solid var(--border);padding-top:15px;margin-top:22px}.account-shell summary{cursor:pointer;color:var(--accent)}
+.secret-key{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card);padding:20px;border:1px solid var(--border);border-radius:8px;color:var(--accent)}
+.domain-card{border:1px solid var(--border);border-radius:10px;padding:20px;margin:18px 0}.domain-card>span{color:var(--muted);margin-right:15px}
+.account-links{display:flex;gap:12px;align-items:center;font-size:12px}.account-links form{display:inline-flex}.account-links a{color:var(--accent)}
+.validation-summary-valid{display:none}.validation-summary-errors ul{padding-left:20px}.form-error{white-space:normal}
+@media(max-width:660px){.account-header{align-items:flex-start;flex-direction:column;padding:20px}.account-header nav{gap:12px}.account-card{padding:20px}.account-links{font-size:10px;gap:8px}.topbar{height:auto;min-height:64px;flex-wrap:wrap;gap:10px;padding-top:12px;padding-bottom:12px}.account-shell h1{font-size:32px}}

@@ -15,6 +15,8 @@ public sealed class MailOptions
     public string[] Domains { get; set; } = ["drop.localhost"];
     [Range(5, 1440)] public int LifetimeMinutes { get; set; } = 60;
     [Range(1, 50)] public int MaxMailboxesPerSession { get; set; } = 10;
+    [Range(1, 100)] public int MaxMailboxesPerAccount { get; set; } = 25;
+    [Range(1, 525600)] public int MessageRetentionMinutes { get; set; } = 60;
     [Range(1024, 5_242_880)] public int MaxMessageBytes { get; set; } = 5_242_880;
     [Range(1, 500)] public int MaxMessagesPerMailbox { get; set; } = 100;
     [Range(1, 30)] public int AddressReuseDelayDays { get; set; } = 7;
@@ -34,6 +36,7 @@ public sealed class SmtpOptions
 public sealed class AdminOptions
 {
     public const string Section = "Admin";
+    public string UserName { get; set; } = "admin";
     public string Password { get; set; } = "";
 }
 

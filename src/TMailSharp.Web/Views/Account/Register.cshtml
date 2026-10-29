@@ -1,0 +1,14 @@
+@model RegisterInput
+@{ ViewData["Title"] = "Create an account"; }
+<main class="account-shell narrow"><div class="eyebrow">YOUR OWN MAILROOM</div><h1>Keep your address.</h1>
+<p>Create an account to reserve permanent email addresses and access your inboxes across devices. Messages are cleared on the service’s retention schedule.</p>
+<form action="/account/register" method="post" class="account-form">
+  @Html.AntiForgeryToken()<div asp-validation-summary="All" class="form-error" role="alert"></div>
+  <label asp-for="UserName">Username</label><input asp-for="UserName" class="form-input" autocomplete="username" minlength="3" maxlength="40" required>
+  <small>3–40 letters, digits, dots, underscores, or hyphens.</small>
+  <label asp-for="Password">Password</label><input asp-for="Password" class="form-input" autocomplete="new-password" required minlength="12">
+  <small>Use at least 12 characters. Keep it unique to this site.</small>
+  <label asp-for="ConfirmPassword">Confirm password</label><input asp-for="ConfirmPassword" class="form-input" autocomplete="new-password" required>
+  <button class="primary-button">Create account</button>
+</form><p>Already registered? <a href="/account/login">Sign in</a>.</p>
+<p class="muted small">No email recovery service is configured. Keep your password and any two-factor recovery codes safe.</p></main>

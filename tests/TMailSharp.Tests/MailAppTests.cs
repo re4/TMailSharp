@@ -12,15 +12,19 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using TMailSharp.Data;
 using TMailSharp.Services;
+using TMailSharp.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace TMailSharp.Tests;
 
-public sealed class MailAppTests : IAsyncLifetime
+public sealed partial class MailAppTests : IAsyncLifetime
 {
     private const string AdminPassword = "test-only-admin-password-strong-2026";
     private readonly string _database = $"tmailsharp_test_{Guid.NewGuid():N}";
     private readonly string _connection = Environment.GetEnvironmentVariable("TMAIL_TEST_MONGO") ?? "mongodb://127.0.0.1:27017";
     private readonly int _smtpPort = FreePort();
+    private readonly string _identityFile = Path.Combine(Path.GetTempPath(), $"tmailsharp_test_{Guid.NewGuid():N}.db");
     private WebApplicationFactory<Program> _factory = null!;
     private MongoMailStore Store => _factory.Services.GetRequiredService<MongoMailStore>();
 
@@ -39,11 +43,13 @@ public sealed class MailAppTests : IAsyncLifetime
                 ["Smtp:CertificatePath"] = "",
                 ["Admin:Password"] = AdminPassword,
                 ["Demo:Enabled"] = "true",
-                ["DataProtection:KeyDirectory"] = Path.Combine(Path.GetTempPath(), "tmailsharp-test-keys")
+                ["Logging:LogLevel:Microsoft.AspNetCore.Identity"] = "Debug",
+                ["DataProtection:KeyDirectory"] = Path.Combine(Path.GetTempPath(), "tmailsharp-test-keys"),
+                ["ConnectionStrings:Identity"] = $"Data Source={_identityFile};Pooling=False"
             }));
             builder.ConfigureServices(services => services.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider()));
         });
-        using var client = Client();
+        using var client = await Client();
         await client.GetAsync("/health");
     }
 
@@ -51,13 +57,31 @@ public sealed class MailAppTests : IAsyncLifetime
     {
         await _factory.DisposeAsync();
         await new MongoClient(_connection).DropDatabaseAsync(_database);
+        if (File.Exists(_identityFile)) File.Delete(_identityFile);
     }
 
-    private HttpClient Client()
+    private async Task<HttpClient> Client()
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true, BaseAddress = new Uri("http://localhost") });
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true, BaseAddress = new Uri("https://localhost") });
         client.DefaultRequestHeaders.Add("X-TMail-Request", "1");
+        await RefreshToken(client);
         return client;
+    }
+
+    private static async Task RefreshToken(HttpClient client)
+    {
+        var bootstrap = await Json(await client.GetAsync("/api/bootstrap"));
+        client.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
+        client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", bootstrap.GetProperty("csrfToken").GetString());
+    }
+
+    private static Task<HttpResponseMessage> Form(HttpClient client, string path, params (string Key, string Value)[] values) =>
+        client.PostAsync(path, new FormUrlEncodedContent(values.Select(v => new KeyValuePair<string, string>(v.Key, v.Value))));
+
+    private static async Task Login(HttpClient client, string name, string password)
+    {
+        Assert.Equal(HttpStatusCode.Redirect, (await Form(client, "/account/login", ("UserName", name), ("Password", password))).StatusCode);
+        await RefreshToken(client);
     }
 
     private static async Task<JsonElement> Json(HttpResponseMessage response)
@@ -73,8 +97,8 @@ public sealed class MailAppTests : IAsyncLifetime
     [Fact]
     public async Task MailboxOwnerCanReadButAnotherBrowserCannotReadOrDelete()
     {
-        using var owner = Client();
-        using var stranger = Client();
+        using var owner = await Client();
+        using var stranger = await Client();
         var mailbox = await CreateMailbox(owner);
         var id = mailbox.GetProperty("id").GetString();
         Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/api/mailboxes/{id}/messages")).StatusCode);
@@ -86,8 +110,8 @@ public sealed class MailAppTests : IAsyncLifetime
     [Fact]
     public async Task SampleDeliveryIncludesAttachmentAndDeletionRemovesEverything()
     {
-        using var client = Client();
-        using var stranger = Client();
+        using var client = await Client();
+        using var stranger = await Client();
         var mailbox = await CreateMailbox(client);
         var id = mailbox.GetProperty("id").GetString();
         await Json(await client.PostAsync($"/api/mailboxes/{id}/sample", null));
@@ -118,7 +142,7 @@ public sealed class MailAppTests : IAsyncLifetime
     [Fact]
     public async Task ExpiryIsEnforcedImmediatelyAndIndexesExpireStoredDocuments()
     {
-        using var client = Client();
+        using var client = await Client();
         var mailbox = await CreateMailbox(client);
         var id = mailbox.GetProperty("id").GetString();
         var address = mailbox.GetProperty("address").GetString()!;
@@ -137,7 +161,7 @@ public sealed class MailAppTests : IAsyncLifetime
     [Fact]
     public async Task UnsafeHtmlIsSanitizedAndDuplicateDeliveryIsIdempotent()
     {
-        using var client = Client();
+        using var client = await Client();
         var mailbox = await CreateMailbox(client);
         var address = mailbox.GetProperty("address").GetString()!;
         var id = mailbox.GetProperty("id").GetString();
@@ -161,26 +185,28 @@ public sealed class MailAppTests : IAsyncLifetime
     [Fact]
     public async Task AdminLoginGatesDomainChangesAndDisabledDomainsStayDisabled()
     {
-        using var client = Client();
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/admin/overview")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/admin/login", new { password = "wrong" })).StatusCode);
-        await Json(await client.PostAsJsonAsync("/api/admin/login", new { password = AdminPassword }));
-        await Json(await client.PutAsJsonAsync("/api/admin/domains", new { name = "TEST.Example.com", enabled = true }));
+        using var client = await Client();
+        Assert.Equal(HttpStatusCode.Redirect, (await client.GetAsync("/admin")).StatusCode);
+        var wrong = await Form(client, "/account/login", ("UserName", "admin"), ("Password", "wrong"));
+        Assert.Contains("Sign-in failed", await wrong.Content.ReadAsStringAsync());
+        await Login(client, "admin", AdminPassword);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/admin")).StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, (await Form(client, "/admin/domains", ("name", "TEST.Example.com"), ("enabled", "true"))).StatusCode);
         var mailbox = await Json(await client.PostAsJsonAsync("/api/mailboxes", new { domain = "test.example.com" }));
         Assert.NotNull(await Store.FindRecipientAsync(mailbox.GetProperty("address").GetString()!, default));
-        await Json(await client.PutAsJsonAsync("/api/admin/domains", new { name = "test.example.com", enabled = false }));
+        Assert.Equal(HttpStatusCode.Redirect, (await Form(client, "/admin/domains", ("name", "test.example.com"), ("enabled", "false"))).StatusCode);
         Assert.Null(await Store.FindRecipientAsync(mailbox.GetProperty("address").GetString()!, default));
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/mailboxes", new { domain = "test.example.com" })).StatusCode);
         await Store.InitializeAsync();
         Assert.DoesNotContain(await Store.GetDomainsAsync(), d => d.Name == "test.example.com");
-        await client.PostAsync("/api/admin/logout", null);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/admin/overview")).StatusCode);
+        await client.PostAsync("/account/logout", null);
+        Assert.Equal(HttpStatusCode.Redirect, (await client.GetAsync("/admin")).StatusCode);
     }
 
     [Fact]
     public async Task MutationsRequireCustomHeaderAndMatchingOrigin()
     {
-        using var client = Client();
+        using var client = await Client();
         client.DefaultRequestHeaders.Remove("X-TMail-Request");
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/mailboxes", new { })).StatusCode);
         client.DefaultRequestHeaders.Add("X-TMail-Request", "1");
@@ -191,7 +217,7 @@ public sealed class MailAppTests : IAsyncLifetime
     [Fact]
     public async Task InvalidAddressAndDomainAreRejected()
     {
-        using var client = Client();
+        using var client = await Client();
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/mailboxes", new { localPart = "../outside", domain = "drop.localhost" })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/mailboxes", new { localPart = "admin", domain = "drop.localhost" })).StatusCode);
         Assert.Throws<AppException>(() => AddressRules.NormalizeDomain("https://evil.com/path"));
@@ -201,7 +227,7 @@ public sealed class MailAppTests : IAsyncLifetime
     [Fact]
     public async Task SmtpReceivesRealMessageAndRejectsUnknownRecipientsAndRelaying()
     {
-        using var client = Client();
+        using var client = await Client();
         var mailbox = await CreateMailbox(client);
         var address = mailbox.GetProperty("address").GetString();
         using var tcp = new TcpClient();

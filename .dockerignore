@@ -5,6 +5,7 @@ deploy/*.env
 **/bin
 **/obj
 **/.keys
+**/.local
 tests
 docs
 .artifacts

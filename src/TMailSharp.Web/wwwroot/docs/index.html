@@ -42,12 +42,17 @@
       <section id="quickstart" class="docs-section" aria-labelledby="quickstart-heading">
         <h2 id="quickstart-heading">Get your first inbox</h2>
         <p>Create an inbox, keep the session cookie, then check for messages. An empty JSON object lets the server choose an available domain and a random address.</p>
-        <div class="docs-code"><div class="docs-code-heading"><span>Bash / curl</span></div><pre data-copyable aria-label="Quickstart curl commands"><code>BASE_URL=<span data-shell-origin>'https://mail.example.com'</span>
+        <div class="docs-code"><div class="docs-code-heading"><span>Bash / curl + jq</span></div><pre data-copyable aria-label="Quickstart curl commands"><code>BASE_URL=<span data-shell-origin>'https://mail.example.com'</span>
 COOKIE_JAR='./tmail-cookies.txt'
+
+# Establish the session and get its request-verification token.
+CSRF_TOKEN=$(curl -fsS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
+  "$BASE_URL/api/bootstrap" | jq -r '.csrfToken')
 
 # Create an inbox and save its access cookie.
 curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
   -H 'X-TMail-Request: 1' \
+  -H "X-CSRF-TOKEN: $CSRF_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{}' \
   "$BASE_URL/api/mailboxes"
@@ -61,6 +66,7 @@ curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
   "id": "21fc2b180a734dc0939f8be8125c3d27",
   "address": "quiet.otter.4829@inbox.example.com",
   "domain": "inbox.example.com",
+  "isPermanent": false,
   "createdAt": "2026-10-29T10:00:00Z",
   "expiresAt": "2026-10-29T11:00:00Z"
 }</code></pre></div>
@@ -68,12 +74,16 @@ curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
         <details class="docs-details">
           <summary>JavaScript example for a page on this server</summary>
           <p>Browser requests must use the same origin as TMailSharp. The browser stores the HttpOnly cookie automatically; JavaScript does not need to read it.</p>
-          <div class="docs-code"><div class="docs-code-heading"><span>JavaScript / fetch</span></div><pre data-copyable aria-label="JavaScript inbox example"><code>const created = await fetch('/api/mailboxes', {
+          <div class="docs-code"><div class="docs-code-heading"><span>JavaScript / fetch</span></div><pre data-copyable aria-label="JavaScript inbox example"><code>const bootstrap = await fetch('/api/bootstrap', { credentials: 'same-origin' });
+if (!bootstrap.ok) throw new Error('Could not start the session.');
+const { csrfToken } = await bootstrap.json();
+const created = await fetch('/api/mailboxes', {
   method: 'POST',
   credentials: 'same-origin',
   headers: {
     'Content-Type': 'application/json',
-    'X-TMail-Request': '1'
+    'X-TMail-Request': '1',
+    'X-CSRF-TOKEN': csrfToken
   },
   body: JSON.stringify({})
 });
@@ -91,15 +101,16 @@ console.log(inbox.address, result.messages);</code></pre></div>
 
       <section id="sessions" class="docs-section" aria-labelledby="sessions-heading">
         <h2 id="sessions-heading">Sessions &amp; requests</h2>
-        <div class="docs-note"><strong>Your cookie is your inbox access.</strong><p>Every API request uses the private <code>tmailsharp.session</code> cookie. The server creates one if it is missing. Losing it means losing access to your inboxes; an email address or inbox ID alone cannot recover them.</p></div>
+        <div class="docs-note"><strong>Keep your session cookies.</strong><p>Guest inboxes use a protected cookie. Permanent inboxes belong to a signed-in account. Keep every cookie returned by the server, including the request-verification cookie. An address or inbox ID alone never grants access.</p></div>
         <ul>
           <li>Persist cookies between requests. With curl, use both <code>-c</code> and <code>-b</code> with the same file. Keep that file private.</li>
           <li>For <code>POST</code>, <code>PUT</code>, and <code>DELETE</code>, send <code>X-TMail-Request: 1</code>.</li>
+          <li>Also send <code>X-CSRF-TOKEN</code> with the <code>csrfToken</code> returned by <code>/api/bootstrap</code>. Get a fresh token after signing in or out.</li>
           <li>For JSON bodies, also send <code>Content-Type: application/json</code>.</li>
           <li>If you send an <code>Origin</code> header, its scheme, host, and port must match the server. Cross-origin browser access is not enabled; use a server-side client for another website.</li>
           <li>API responses use <code>Cache-Control: no-store</code>. Dates are UTC strings. Treat all IDs as opaque values.</li>
         </ul>
-        <p>Inboxes and their messages expire together at <code>expiresAt</code>. Expired inboxes immediately return <code>404</code>, even before background storage cleanup finishes. Creating another inbox does not extend the lifetime of an existing one.</p>
+        <p>Temporary inboxes expire at <code>expiresAt</code>. Permanent addresses have <code>isPermanent: true</code> and <code>expiresAt: null</code>. Messages have their own retention timer; reading a message never deletes it or restarts that timer.</p>
       </section>
 
       <section id="inboxes" class="docs-section" aria-labelledby="inboxes-heading">
@@ -113,10 +124,12 @@ console.log(inbox.address, result.messages);</code></pre></div>
   ],
   "mailboxes": [],
   "lifetimeMinutes": 60,
+  "messageRetentionMinutes": 60,
+  "csrfToken": "TOKEN_FOR_THIS_SESSION",
   "maxMessageBytes": 5242880,
   "maxMailboxes": 10
 }</code></pre></div>
-          <p>Only mailbox-related fields are shown above; other response fields can be ignored. <code>mailboxes</code> contains the same inbox objects returned on creation. An empty <code>domains</code> array means no domains are currently available for new inboxes.</p>
+          <p>Only mailbox-related fields are shown above; other response fields can be ignored. <code>mailboxes</code> contains the same inbox objects returned on creation. <code>user</code> is null for guests or identifies the current signed-in account. Domain-specific retention, when present, overrides <code>messageRetentionMinutes</code>.</p>
         </article>
         <article class="docs-endpoint" id="create-inbox">
           <h3><span class="docs-method docs-method-post">POST</span><code>/api/mailboxes</code></h3>
@@ -125,6 +138,7 @@ console.log(inbox.address, result.messages);</code></pre></div>
           <div class="docs-table-wrap"><table><caption>Creation fields</caption><thead><tr><th>Field</th><th>Type</th><th>Behavior</th></tr></thead><tbody>
             <tr><td><code>localPart</code></td><td>string or null</td><td>Optional. Omit, send null, or leave blank for a random name.</td></tr>
             <tr><td><code>domain</code></td><td>string or null</td><td>Optional. Use an enabled domain from <code>/api/bootstrap</code>. If omitted, null, or blank, the first available domain is used.</td></tr>
+            <tr><td><code>permanent</code></td><td>boolean</td><td>Optional; defaults to false. Set true while signed in to reserve an address permanently.</td></tr>
           </tbody></table></div>
           <p>Custom names are trimmed and lowercased. They must be 3–40 ASCII letters, digits, dots, underscores, or hyphens, starting and ending with a letter or digit. Consecutive dots and reserved address names are rejected.</p>
           <p>A reserved address or a full session returns <code>409</code>. Recently deleted or expired addresses can remain reserved; choose another name if needed.</p>
@@ -134,7 +148,12 @@ console.log(inbox.address, result.messages);</code></pre></div>
           <p>Delete an inbox owned by this session and all its messages and attachments. Returns <code>204 No Content</code>. This cannot be undone and does not release its address reservation early.</p>
           <div class="docs-code"><div class="docs-code-heading"><span>Bash / curl · Uses the quickstart variables</span></div><pre data-copyable aria-label="Delete inbox command"><code>curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
   -X DELETE -H 'X-TMail-Request: 1' \
+  -H "X-CSRF-TOKEN: $CSRF_TOKEN" \
   "$BASE_URL/api/mailboxes/$MAILBOX_ID"</code></pre></div>
+        </article>
+        <article class="docs-endpoint" id="reserve-inbox">
+          <h3><span class="docs-method docs-method-post">POST</span><code>/api/mailboxes/{id}/reserve</code></h3>
+          <p>While signed in, keep one of your temporary addresses permanently. Send both request headers; no body is needed. Returns the updated inbox with <code>isPermanent: true</code> and <code>expiresAt: null</code>. Messages still expire on their retention schedule.</p>
         </article>
       </section>
 
@@ -154,7 +173,7 @@ console.log(inbox.address, result.messages);</code></pre></div>
   "isRead": false,
   "attachmentCount": 1
 }</code></pre></div>
-          <p>Summaries do not contain message bodies or attachment contents. Poll at a reasonable interval, such as every six seconds, and stop when the inbox expires.</p>
+          <p>Summaries do not contain message bodies or attachment contents. Poll at a reasonable interval, such as every six seconds, and stop when a temporary inbox expires.</p>
         </article>
         <article class="docs-endpoint" id="read-message">
           <h3><span class="docs-method">GET</span><code>/api/mailboxes/{id}/messages/{messageId}</code></h3>
@@ -204,7 +223,8 @@ curl --fail-with-body -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
           <tr><td><code>200</code></td><td>Request completed. The body is JSON, HTML, or file bytes, depending on the endpoint.</td></tr>
           <tr><td><code>201</code></td><td>Inbox created.</td></tr>
           <tr><td><code>204</code></td><td>Delete completed. There is no response body to parse.</td></tr>
-          <tr><td><code>400</code></td><td>Invalid address, unavailable domain, or invalid request body.</td></tr>
+          <tr><td><code>400</code></td><td>Invalid address, unavailable domain, invalid body, or missing/expired request-verification token.</td></tr>
+          <tr><td><code>401</code></td><td>Sign in to create or reserve a permanent address.</td></tr>
           <tr><td><code>403</code></td><td>Missing <code>X-TMail-Request: 1</code> or an Origin that does not match the server.</td></tr>
           <tr><td><code>404</code></td><td>Inbox expired, wrong session, or missing message or attachment.</td></tr>
           <tr><td><code>409</code></td><td>Address reserved or active inbox limit reached.</td></tr>
@@ -215,7 +235,7 @@ curl --fail-with-body -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
         </tbody></table></div>
         <h3 class="docs-subheading">Request limits</h3>
         <p>Requests are limited per client IP: most mailbox requests allow <strong>180 per minute</strong> and inbox creation allows <strong>12 per minute</strong>. On <code>429</code>, wait up to one minute before trying again.</p>
-        <p>JSON request bodies are limited to <strong>32 KiB</strong>. Check <code>/api/bootstrap</code> for the current inbox lifetime, active inbox limit, and incoming message size limit.</p>
+        <p>JSON request bodies are limited to <strong>64 KiB</strong>. Check <code>/api/bootstrap</code> for the current inbox lifetime, active inbox limit, and incoming message size limit.</p>
       </section>
       <footer class="docs-footer"><a href="/">Back to your inbox <span aria-hidden="true">↗</span></a><a href="#main-content">Back to top ↑</a></footer>
     </main>

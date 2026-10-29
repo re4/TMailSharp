@@ -1,5 +1,7 @@
 # Manual deployment with GitHub Actions
 
+For v1.1.0, read [the migration guide](UPGRADING-v1.1.0.md). Account data is stored in a persistent SQLite database in `identity/` inside the mounted key directory by default. Back up both. `Admin__UserName` and `Admin__Password` bootstrap the first Identity administrator; later password changes happen through the account-security page. Public access requires HTTPS, and passkeys should use an explicitly configured `Identity__PasskeyDomain`.
+
 TMailSharp follows the deployment pattern in GravHosting: build an image in GitHub Actions, transfer it over SSH, and run it with host networking against MongoDB on the server. No container registry is required.
 
 ## What triggers a deployment

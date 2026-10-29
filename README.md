@@ -1,8 +1,10 @@
 # TMailSharp
 
-**Self-hosted temporary email, built with C# and MongoDB.**
+**Self-hosted temporary and permanent email addresses, built with ASP.NET Core MVC and MongoDB.**
 
-Create disposable inboxes across your own domains, receive messages and attachments, and let everything expire automatically. TMailSharp includes a dark blue interface, an HTTP API, and a small administration dashboard.
+Create disposable inboxes or register to reserve permanent addresses across your own domains. Receive messages and attachments, with configurable automatic message cleanup. TMailSharp includes MVC views, ASP.NET Core Identity accounts, authenticator-based 2FA, FIDO2 passkeys and YubiKeys, and an administration dashboard.
+
+Upgrading from 1.0? Read [the v1.1.0 migration guide](docs/UPGRADING-v1.1.0.md) before deploying. Identity accounts require persistent SQLite storage alongside MongoDB and the authentication keys.
 
 [Getting started](#getting-started) · [Receiving email](#receiving-email) · [API reference](docs/API.md) · [Deployment guide](docs/DEPLOYMENT.md) · [License](LICENSE)
 
@@ -16,10 +18,12 @@ Create disposable inboxes across your own domains, receive messages and attachme
 - **Automatic updates** — check for new messages every six seconds while the tab is visible.
 - **Message tools** — search, track read status, delete messages, and download attachments.
 - **HTML and plain text** — read sanitized HTML in an isolated frame or switch to plain text.
-- **Automatic expiry** — expire inboxes and messages together, with MongoDB TTL cleanup.
+- **Permanent addresses** — registered users can reserve addresses and use them across devices.
+- **Account security** — Identity password hashing, lockout, authenticator 2FA, recovery codes, and FIDO2 passkeys/security keys.
+- **Automatic cleanup** — administrators choose default or per-domain message retention; permanent addresses remain reserved.
 - **Built-in SMTP receiver** — accept incoming mail with optional STARTTLS and duplicate-delivery protection.
 - **HTTP API** — create inboxes and retrieve or delete received mail from your own integrations.
-- **Administration** — manage domains and view active inbox, message, and SMTP status.
+- **Administration** — Identity-protected domain management, domain deletion, and retention settings.
 - **Dark mode by default** — blue accents, an optional light theme, and a responsive mobile layout.
 
 TMailSharp is **receive-only**. It does not send or reply to email, provide IMAP/POP3 access, or create a mailbox automatically for every unknown recipient.
@@ -63,11 +67,11 @@ docker compose up --build -d
 ```
 
 - Website: **http://localhost:5080**
-- Administration: **http://localhost:5080/admin** — use `ADMIN_PASSWORD` from `.env`.
+- Administration: **http://localhost:5080/admin** — sign in as `admin` (or `ADMIN_USERNAME`) with the initial `ADMIN_PASSWORD` from `.env`.
 - Incoming SMTP: **port 2525**.
 - MongoDB: available only on the private Compose network.
 
-MongoDB data and authentication keys are stored in named Docker volumes. The Compose configuration uses MongoDB 8.0, starts the app as a non-root user, and disables sample-message delivery.
+MongoDB data, SQLite Identity accounts, and authentication keys are stored in separate named Docker volumes. The Compose configuration uses MongoDB 8.0, starts the app as a non-root user, and disables sample-message delivery. Put an HTTPS reverse proxy in front of the web listener for production.
 
 To stop the services while keeping their data:
 
@@ -129,7 +133,7 @@ dotnet run --project src/TMailSharp.Web --urls http://localhost:5080
 
 The database user needs `readWrite` access to the application database. Set `authSource` to the database where that user was created. TMailSharp creates its own collections and indexes on startup.
 
-If no administrator password is configured, administrator sign-in is disabled. Startup fails if MongoDB is unavailable; there is no in-memory fallback.
+`Admin__UserName` (default `admin`) and `Admin__Password` create the initial Identity administrator once. Afterward, account passwords are managed in Account security; changing the environment variable does not overwrite an existing password. Without an initial password, no administrator is created. Startup fails if MongoDB or Identity storage is unavailable.
 
 ## Receiving email
 
@@ -187,6 +191,7 @@ Visitors can open **`/docs/`** on any running TMailSharp server for the public m
 | `GET` | `/api/mailboxes/{id}/messages/{messageId}` | Read a message and mark it as read |
 | `DELETE` | `/api/mailboxes/{id}/messages/{messageId}` | Delete a message |
 | `DELETE` | `/api/mailboxes/{id}` | Delete an inbox |
+| `POST` | `/api/mailboxes/{id}/reserve` | Reserve an owned address permanently while signed in |
 | `GET` | `/api/mailboxes/{id}/messages/{messageId}/attachments/{attachmentId}` | Download an attachment |
 
 Example body for creating an inbox:
@@ -200,7 +205,7 @@ Example body for creating an inbox:
 
 Omit `localPart`, or set it to `null`, for a random address.
 
-The API uses a private session cookie. Integrations must retain that cookie between requests. Non-GET requests require the header `X-TMail-Request: 1`; JSON bodies also require `Content-Type: application/json`. Cross-origin access is not enabled. There are no API-key accounts or outbound-mail endpoints.
+Start with `/api/bootstrap` and retain its cookies and `csrfToken`. Non-GET requests require both `X-TMail-Request: 1` and `X-CSRF-TOKEN: <csrfToken>`; JSON bodies also require `Content-Type: application/json`. Refresh the token after signing in or out. Signed-in users may create an inbox with `permanent: true`. Cross-origin access is not enabled. There are no outbound-mail endpoints.
 
 See the [mailbox API reference](docs/API.md) for response fields and status codes.
 
@@ -214,19 +219,24 @@ TMailSharp uses ASP.NET Core configuration. Environment variables use `__` in pl
 | `Mongo__Database` | `tmailsharp` | Database name |
 | `Mail__LifetimeMinutes` | `60` | New inbox lifetime; 5–1440 minutes |
 | `Mail__MaxMailboxesPerSession` | `10` | Active inbox limit per browser session |
+| `Mail__MaxMailboxesPerAccount` | `25` | Active inbox limit per registered account |
+| `Mail__MessageRetentionMinutes` | `60` | Initial default message retention; afterward managed in `/admin` |
 | `Mail__MaxMessageBytes` | `5242880` | Raw MIME size limit; 5 MiB |
 | `Mail__MaxMessagesPerMailbox` | `100` | Stored message limit per inbox |
 | `Mail__AddressReuseDelayDays` | `7` | Address reservation after scheduled expiry |
 | `Smtp__Enabled` | `true` | Start the SMTP receiver |
 | `Smtp__Host` | `127.0.0.1` | SMTP bind address |
 | `Smtp__Port` | `2525` | SMTP listener port |
-| `Admin__Password` | Empty | Enables administrator sign-in when configured |
+| `Admin__Password` | Empty | Initial Identity administrator password; at least 20 characters |
+| `Admin__UserName` | `admin` | Initial administrator account name |
+| `Identity__DataDirectory` | Private local directory, or `identity/` inside the configured key directory | Persistent SQLite Identity database |
+| `Identity__PasskeyDomain` | Request hostname | Exact public hostname for FIDO2 passkeys |
 | `Demo__Enabled` | `false` | Sample delivery; Development environment only |
-| `DataProtection__KeyDirectory` | `.keys` under the app content root | Persistent authentication-cookie keys |
+| `DataProtection__KeyDirectory` | `.local/identity/keys` under the app content root | Persistent authentication-cookie keys |
 
 Initial domains are read from `Mail__Domains__0`, `Mail__Domains__1`, and so on only when the domain collection is empty. After that, manage domains in `/admin`. Configuration changes do not overwrite administrator-managed domains.
 
-Expiry is enforced by the application immediately. MongoDB's TTL process removes expired documents asynchronously. Deleting an inbox early does not shorten its address reservation: the address remains reserved until its scheduled expiry plus the configured reuse delay.
+Expiry is enforced immediately; MongoDB TTL cleanup and a background worker remove expired messages. Reading a message only marks it as read. Permanent addresses have no mailbox expiry, but their messages follow the retention schedule. Deleting a permanent address starts the configured reuse delay; temporary addresses stay reserved until their scheduled expiry plus that delay.
 
 Restart the application to apply server configuration changes. With the SSH deployment, run another manual deployment after editing the server's environment file.
 
@@ -250,17 +260,17 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the server setup, persistent ke
 
 ## Development and tests
 
-The backend is C#; the frontend is plain HTML, CSS, and JavaScript. No Node.js build step is required.
+The backend uses ASP.NET Core MVC controllers and Razor views. ASP.NET Core Identity stores accounts in SQLite; MongoDB stores mail. The frontend uses plain CSS and JavaScript, with no Node.js build step.
 
 ```sh
-dotnet restore TMailSharp.slnx --locked-mode
-dotnet build TMailSharp.slnx -c Release --no-restore
+dotnet restore tests/TMailSharp.Tests/TMailSharp.Tests.csproj --locked-mode
+dotnet build src/TMailSharp.Web/TMailSharp.Web.csproj -c Release --no-restore
 ```
 
 Tests require a reachable **development MongoDB instance**. They create randomly named `tmailsharp_test_*` databases, use isolated SMTP ports, and remove those test databases on completion.
 
 ```sh
-TMAIL_TEST_MONGO='mongodb://127.0.0.1:27017' dotnet test TMailSharp.slnx -c Release
+TMAIL_TEST_MONGO='mongodb://127.0.0.1:27017' dotnet test tests/TMailSharp.Tests/TMailSharp.Tests.csproj -c Release
 ```
 
 With the Windows local services running:
@@ -285,7 +295,9 @@ dotnet publish src/TMailSharp.Web -c Release -o .artifacts/publish
 
 ```text
 src/TMailSharp.Web/
-  Api/             HTTP endpoints
+  Controllers/     MVC pages and mailbox HTTP endpoints
+  Views/           Razor page templates
+  Identity/        Identity account database and initialization
   Configuration/   Server options
   Data/            MongoDB documents, indexes, and queries
   Services/        Address rules, MIME processing, and SMTP hosting
@@ -304,8 +316,8 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the request, storage, and 
 
 ## Security and operational limits
 
-- Browser sessions isolate inbox access, but mail is **not end-to-end encrypted**. Server and database administrators can access stored messages.
-- Clearing the browser's session cookie loses access to its inboxes. Temporary addresses are unsuitable for accounts that need long-term recovery.
+- Guest sessions and registered accounts isolate inbox access, but mail is **not end-to-end encrypted**. Server and database administrators can access stored messages.
+- Clearing a guest cookie loses access to its temporary inboxes. Registered users can sign back in to reach their account-owned addresses. Temporary addresses are unsuitable for accounts that need long-term recovery.
 - HTML is sanitized and isolated; remote images, scripts, forms, and embedded content are blocked. Attachments are downloaded as files.
 - The app includes request and storage limits, but no spam classifier, antivirus scanner, or durable inbound mail queue. Use a mail gateway for those services in a public deployment.
 - Use HTTPS, authenticate MongoDB, keep database access private, and protect persistent keys and runtime configuration files.

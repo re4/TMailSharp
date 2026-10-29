@@ -2,7 +2,11 @@
 
 ## Request flow
 
-ASP.NET Core serves static UI assets and a same-origin HTTP API. A cryptographically random 256-bit browser token is stored in an HttpOnly, SameSite=Strict cookie. Only its SHA-256 digest is stored with each mailbox. All mailbox, message, and attachment reads check that digest and the mailbox's expiry. Administrator authentication uses a separate signed, four-hour ASP.NET Core cookie.
+ASP.NET Core MVC controllers serve Razor views and the same-origin mailbox API. ASP.NET Core Identity provides password hashing, account lockout, role authorization, authenticator 2FA, recovery codes, and FIDO2 passkeys. Identity uses the standard Entity Framework Core SQLite store with schema version 3.
+
+Guests receive a protected random token in an HttpOnly, SameSite=Strict cookie. Its SHA-256 digest identifies their mailboxes. Account-owned inboxes use an owner identifier derived from the authenticated Identity user ID. Every mailbox, message, and attachment operation checks ownership. Administrators use the same Identity sign-in flow and must have the Administrator role.
+
+Unsafe actions validate antiforgery tokens. The mailbox API also requires its custom request header and checks any supplied Origin. Production cookies require HTTPS. The disclosed v1.0 key is revoked on startup if found; the v1.1 application discriminator and cookie names also change.
 
 The UI remembers only the selected mailbox ID and theme in local storage. It never stores authentication tokens there. It polls at six-second intervals while visible. Mail content is inserted as text or served in a sandboxed iframe after server-side allowlist sanitization. Attachments always download as `application/octet-stream` with a filename and `nosniff`.
 
@@ -14,8 +18,11 @@ The UI remembers only the selected mailbox ID and theme in local storage. It nev
 | `messages` | Per-recipient parsed MIME content, sanitized HTML, attachment bytes | Mailbox/date; unique mailbox/delivery hash; TTL on expiry |
 | `domains` | Normalized domain, enabled flag, created timestamp | Domain is `_id` |
 | `address_reservations` | Previously allocated addresses with reuse time | Address is `_id`; TTL on reservation expiry |
+| `settings` | Message retention and domain initialization state | Settings ID is `_id` |
 
-Dates are UTC BSON dates. Attachments share a message's lifecycle rather than using a separate file store. Raw MIME is capped at 5 MiB to keep parsed content and attachment documents within MongoDB's document limit. A per-mailbox atomic counter bounds stored messages. Application expiry checks are immediate; physical TTL deletion is asynchronous.
+Dates are UTC BSON dates. Permanent mailboxes and reservations omit expiry, so TTL cleanup leaves their addresses intact. Message expiry is based on receipt time and the domain override or default retention, capped by a temporary mailbox's expiry. Reading changes only the read flag. A worker removes expired messages and reconciles counters every 30 seconds. Application expiry checks are immediate.
+
+Attachments share a message's lifecycle. Raw MIME is capped at 5 MiB, and a per-mailbox atomic counter bounds stored messages. Retention changes update existing message expiries and immediately clear messages older than the new limit.
 
 The address reservation is created before the mailbox. If a creation fails afterward, the address remains reserved rather than becoming reusable. Message count updates are compensated when insertion fails. Delivery is idempotent for identical raw MIME bytes within a mailbox using a unique hash index. Every successful store rechecks mailbox existence to clean up concurrent-deletion orphans.
 
@@ -29,6 +36,6 @@ SMTP message ingestion is distinct from the development-only sample HTTP endpoin
 
 ## Deployment boundaries
 
-Use HTTPS and a trusted reverse proxy for the web endpoint. Persist and protect the ASP.NET Core data protection key directory. Trust forwarding headers only from known proxy addresses. Keep MongoDB private and authenticated outside local development. Use an inbound mail gateway for connection throttling, spam filtering, virus scanning, abuse controls, and production queuing.
+Use HTTPS and a trusted reverse proxy. Persist and protect the Identity SQLite database and ASP.NET Core key directory. The SQLite setup supports one application instance; multi-node account storage needs a shared database provider. Trust forwarding headers only from known proxies. Configure the exact public passkey domain and do not serve untrusted content under it. Keep MongoDB private and authenticated. Use a mail gateway for connection throttling, spam filtering, virus scanning, and queuing.
 
 Stored mail is not encrypted end-to-end; infrastructure administrators and backup operators may access it. Review operational logging and backup retention before making a public privacy claim. Logs intentionally avoid recording MIME bodies or administrator passwords.

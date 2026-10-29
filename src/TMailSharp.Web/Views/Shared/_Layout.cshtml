@@ -1,0 +1,34 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1120">
+  <meta name="csrf-token" content="@Antiforgery.GetAndStoreTokens(Context).RequestToken">
+  <title>@ViewData["Title"] — TMailSharp</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body>
+@if (!(ViewData["InboxLayout"] is true))
+{
+  <header class="account-header"><a href="/" class="brand">TMail<span class="brand-light">Sharp</span></a>
+    <nav><a href="/">Inbox</a><a href="/docs/">Mailbox API</a>
+      @if (User.Identity?.IsAuthenticated == true)
+      {
+        <a href="/account/security">Account security</a>
+        @if (User.IsInRole("Administrator")) { <a href="/admin">Administration</a> }
+        <form action="/account/logout" method="post">@Html.AntiForgeryToken()<button class="text-button">Sign out</button></form>
+      }
+      else { <a href="/account/login">Sign in</a><a href="/account/register">Register</a> }
+      <button id="theme-toggle" class="icon-button" aria-label="Switch to light mode"><svg><use href="/icons.svg#sun"/></svg></button>
+    </nav>
+  </header>
+}
+@RenderBody()
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

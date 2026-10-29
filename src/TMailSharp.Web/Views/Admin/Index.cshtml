@@ -1,0 +1,26 @@
+@model AdminViewModel
+@{ ViewData["Title"] = "Administration"; }
+<main class="account-shell"><div class="eyebrow">ADMINISTRATION</div><h1>Your mailroom.</h1>
+<section class="account-card"><h2>Message retention</h2><p>Clear messages after this many minutes from receipt. Permanent addresses stay reserved. Changes also apply to existing messages and can remove old mail immediately.</p>
+<form action="/admin/retention" method="post" class="account-form">@Html.AntiForgeryToken()
+  <label for="retention-minutes">Default message lifetime in minutes</label><input id="retention-minutes" name="minutes" type="number" class="form-input" min="1" max="525600" value="@Model.Settings.MessageRetentionMinutes" required>
+  <button class="primary-button">Save retention schedule</button>
+</form></section>
+<section class="account-card"><h2>Email domains</h2><p>Deleting a domain stops new inboxes and deliveries. Existing addresses stay reserved and their messages follow the retention schedule.</p>
+@foreach (var domain in Model.Domains)
+{
+  <div class="domain-card"><h3>@domain.Name</h3><span>@(domain.Enabled ? "Enabled" : "Disabled")</span>
+    <p>@(domain.RetentionMinutes is null ? "Uses the default retention schedule." : "Uses a custom retention schedule.")</p>
+    <form action="/admin/domains" method="post" class="inline-form">@Html.AntiForgeryToken()<input type="hidden" name="name" value="@domain.Name"><input type="hidden" name="enabled" value="@((!domain.Enabled).ToString().ToLowerInvariant())"><button class="secondary-button">@(domain.Enabled ? "Disable" : "Enable")</button></form>
+    <form action="/admin/retention" method="post" class="account-form">@Html.AntiForgeryToken()<input type="hidden" name="domain" value="@domain.Name">
+      <label>Message lifetime in minutes<input type="number" name="minutes" class="form-input" value="@(domain.RetentionMinutes ?? Model.Settings.MessageRetentionMinutes)" min="1" max="525600" required></label><button class="secondary-button">Set domain retention</button>
+    </form>
+    @if (domain.RetentionMinutes is not null) {
+      <form action="/admin/retention/reset" method="post">@Html.AntiForgeryToken()<input type="hidden" name="domain" value="@domain.Name"><button class="secondary-button">Use default retention</button></form>
+    }
+    <details><summary>Delete domain</summary><p>Stop receiving mail at @domain.Name?</p><form action="/admin/domains/delete" method="post">@Html.AntiForgeryToken()<input type="hidden" name="name" value="@domain.Name"><button class="secondary-button danger-subtle">Delete @domain.Name</button></form></details>
+  </div>
+}
+<form action="/admin/domains" method="post" class="account-form">@Html.AntiForgeryToken()<input type="hidden" name="enabled" value="true">
+  <label for="domain-name">New domain</label><input id="domain-name" name="name" class="form-input" placeholder="inbox.example.com" required maxlength="253"><button class="primary-button">Add domain</button>
+</form></section></main>

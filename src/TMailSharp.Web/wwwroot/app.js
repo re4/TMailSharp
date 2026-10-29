@@ -3,12 +3,14 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const state = { mailboxes: [], domains: [], messages: [], activeId: null, detail: null, config: null, loading: false, version: 0 };
 let toastTimer;
 let preferredId;
+let csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 try {
   preferredId = localStorage.getItem('tmailsharp.active');
 } catch { /* Storage may be unavailable in private browser configurations. */ }
 
 export async function api(path, options = {}) {
   const headers = { 'X-TMail-Request': '1', ...options.headers };
+  if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   const response = await fetch(`/api${path}`, { credentials: 'same-origin', cache: 'no-store', ...options, headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body), signal: options.signal ?? AbortSignal.timeout(15000) });
@@ -20,6 +22,7 @@ export async function api(path, options = {}) {
     error.status = response.status;
     throw error;
   }
+  if (result.csrfToken) csrfToken = result.csrfToken;
   return result;
 }
 
@@ -78,6 +81,7 @@ function renderMailboxes() {
   $('#copy-email').disabled = !mailbox;
   $('#delete-inbox').disabled = !mailbox;
   $('#active-badge').hidden = !mailbox;
+  $('#reserve-inbox').hidden = !mailbox || mailbox.isPermanent || !state.config?.user;
   $('#domain-select').replaceChildren(...state.domains.map(domain => {
     const option = element('option', '', `@${domain.name}`);
     option.value = domain.name;
@@ -125,6 +129,7 @@ async function bootstrap() {
 }
 
 async function createMailbox(body) {
+  if (body.permanent === undefined) body.permanent = Boolean(state.config?.user);
   const mailbox = await api('/mailboxes', { method: 'POST', body });
   state.mailboxes.unshift(mailbox);
   await selectMailbox(mailbox.id);
@@ -239,6 +244,15 @@ function showMessageBody(formatted) {
 function updateExpiry() {
   const mailbox = activeMailbox();
   if (!mailbox) { $('#expiry-time').textContent = '—'; return; }
+  if (mailbox.isPermanent) {
+    $('#expiry-label').textContent = 'Permanent address';
+    $('#expiry-time').textContent = '';
+    const retention = state.domains.find(domain => domain.name === mailbox.domain)?.retentionMinutes ?? state.config?.messageRetentionMinutes ?? 60;
+    $('#expiry-hint').textContent = `Messages kept for ${retention} minutes.`;
+    return;
+  }
+  $('#expiry-label').textContent = 'Disappears in';
+  $('#expiry-hint').textContent = 'A fresh start, automatically.';
   const remaining = new Date(mailbox.expiresAt).getTime() - Date.now();
   if (remaining <= 0) { void expireMailbox(mailbox.id); return; }
   const seconds = Math.ceil(remaining / 1000);
@@ -248,7 +262,7 @@ function updateExpiry() {
 async function expireMailbox(id) {
   if (!state.mailboxes.some(m => m.id === id)) return;
   state.mailboxes = state.mailboxes.filter(m => m.id !== id);
-  if (state.detail?.mailboxId === id) { $('#message-dialog').close(); state.detail = null; }
+  // Keep an already opened message visible until the reader closes it.
   if (state.activeId === id) {
     state.activeId = state.mailboxes[0]?.id ?? null;
     state.messages = [];
@@ -316,7 +330,8 @@ function initializeInbox() {
     submit.disabled = true;
     $('#address-error').textContent = '';
     try {
-      await createMailbox({ localPart: $('#local-part').value.trim() || null, domain: $('#domain-select').value });
+      await createMailbox({ localPart: $('#local-part').value.trim() || null, domain: $('#domain-select').value,
+        permanent: $('#permanent-address')?.checked ?? false });
       $('#address-dialog').close(); toast('Your new address is ready.');
     } catch (error) { $('#address-error').textContent = error.message; }
     finally { submit.disabled = false; }
@@ -331,7 +346,17 @@ function initializeInbox() {
   }));
   $('#html-tab').addEventListener('click', () => showMessageBody(true));
   $('#text-tab').addEventListener('click', () => showMessageBody(false));
-  $('#message-dialog').addEventListener('close', () => { $('#detail-content').replaceChildren(); state.detail = null; });
+  $('#message-dialog').addEventListener('close', () => {
+    if ($('#message-dialog').open) return;
+    $('#detail-content').replaceChildren(); state.detail = null;
+  });
+  $('#reserve-inbox').addEventListener('click', event => perform(event.currentTarget, async () => {
+    if (!state.activeId) return;
+    const mailbox = await api(`/mailboxes/${state.activeId}/reserve`, { method: 'POST' });
+    const index = state.mailboxes.findIndex(item => item.id === mailbox.id);
+    if (index >= 0) state.mailboxes[index] = mailbox;
+    renderMailboxes(); toast('This address is now reserved for your account.');
+  }));
   $('#delete-message').addEventListener('click', event => perform(event.currentTarget, async () => {
     if (!state.detail) return;
     const { mailboxId, id } = state.detail;

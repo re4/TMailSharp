@@ -1,0 +1,4 @@
+@model string[]
+@{ ViewData["Title"] = "Save your recovery codes"; }
+<main class="account-shell narrow"><h1>Save these somewhere safe.</h1><p>Each recovery code works once with your password if you lose access to your authenticator. New codes replace any previous codes.</p>
+<pre class="secret-key">@string.Join("\n", Model)</pre><p>These codes will not be displayed again.</p><a class="primary-button" href="/account/security">I have saved my codes</a></main>

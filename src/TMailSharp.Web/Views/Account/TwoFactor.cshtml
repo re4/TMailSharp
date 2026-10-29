@@ -1,0 +1,9 @@
+@model TwoFactorInput
+@{ ViewData["Title"] = "Two-factor verification"; }
+<main class="account-shell narrow"><h1>One more step.</h1><p>Enter the current code from your authenticator, or use one of your recovery codes.</p>
+<form action="/account/two-factor" method="post" class="account-form">
+  @Html.AntiForgeryToken()<input asp-for="ReturnUrl" type="hidden"><div asp-validation-summary="All" class="form-error" role="alert"></div>
+  <label asp-for="Code">Verification code</label><input asp-for="Code" class="form-input" autocomplete="one-time-code" required autofocus>
+  <label class="check-label"><input asp-for="RecoveryCode"> Use a recovery code</label>
+  <button class="primary-button">Verify and sign in</button>
+</form></main>

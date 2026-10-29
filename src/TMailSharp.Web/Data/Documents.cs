@@ -9,14 +9,15 @@ public sealed class MailboxDocument
     public string Domain { get; set; } = "";
     public string OwnerHash { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime ExpiresAt { get; set; }
+    [BsonIgnoreIfNull] public DateTime? ExpiresAt { get; set; }
+    public bool IsPermanent { get; set; }
     public int MessageCount { get; set; }
 }
 
 public sealed class AddressReservation
 {
     [BsonId] public string Address { get; set; } = "";
-    public DateTime ExpiresAt { get; set; }
+    [BsonIgnoreIfNull] public DateTime? ExpiresAt { get; set; }
 }
 
 public sealed class DomainDocument
@@ -24,6 +25,14 @@ public sealed class DomainDocument
     [BsonId] public string Name { get; set; } = "";
     public bool Enabled { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public int? RetentionMinutes { get; set; }
+}
+
+public sealed class MailSettingsDocument
+{
+    [BsonId] public string Id { get; set; } = "global";
+    public int MessageRetentionMinutes { get; set; } = 60;
+    public bool DomainsInitialized { get; set; }
 }
 
 public sealed class MessageDocument

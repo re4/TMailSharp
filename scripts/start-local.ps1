@@ -68,7 +68,7 @@ if (!(Test-Path -LiteralPath $passwordFile)) {
 
 Push-Location $projectRoot
 try {
-    & dotnet restore TMailSharp.slnx --packages (Join-Path $localRoot 'packages') --locked-mode
+    & dotnet restore tests/TMailSharp.Tests/TMailSharp.Tests.csproj --packages (Join-Path $localRoot 'packages') --locked-mode
     if ($LASTEXITCODE -ne 0) { throw 'Dependency restore failed.' }
     & dotnet build src/TMailSharp.Web/TMailSharp.Web.csproj -c Release --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'The application could not be built.' }
@@ -80,6 +80,8 @@ $settings = @{
     Mongo__ConnectionString = "mongodb://127.0.0.1:$MongoPort"
     Mongo__Database = 'tmailsharp'
     Admin__Password = (Get-Content -LiteralPath $passwordFile -Raw).Trim()
+    Admin__UserName = 'admin'
+    Identity__DataDirectory = (Join-Path $localRoot 'identity')
     Smtp__Host = '127.0.0.1'
     Smtp__Port = "$SmtpPort"
     Demo__Enabled = 'true'

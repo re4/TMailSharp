@@ -1,0 +1,9 @@
+@model string
+@{ ViewData["Title"] = "Set up two-factor authentication"; }
+<main class="account-shell narrow"><h1>Connect your authenticator.</h1>
+<p>Add a new time-based account in your authenticator app. Use <strong>TMailSharp</strong> as the service name and your username as the account name, then enter this setup key:</p>
+<pre class="secret-key">@Model</pre><p>Keep this key private. Enter the six-digit code from the app to finish setup.</p>
+<form action="/account/authenticator/enable" method="post" class="account-form">
+  @Html.AntiForgeryToken()<label for="Code">Authenticator code</label><input id="Code" name="Code" class="form-input" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,8}" required>
+  <button class="primary-button">Enable two-factor authentication</button>
+</form></main>

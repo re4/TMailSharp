@@ -9,14 +9,18 @@ services:
       Mongo__ConnectionString: mongodb://${MONGO_USERNAME:-tmail}:${MONGO_PASSWORD:?Set MONGO_PASSWORD in .env}@mongo:27017/tmailsharp?authSource=admin
       Mongo__Database: tmailsharp
       Admin__Password: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env (at least 20 characters)}
+      Admin__UserName: ${ADMIN_USERNAME:-admin}
       Mail__Domains__0: ${MAIL_DOMAIN:-drop.localhost}
       Mail__Domains__1: ${MAIL_DOMAIN:-drop.localhost}
       Mail__Domains__2: ${MAIL_DOMAIN:-drop.localhost}
       Smtp__ServerName: ${SMTP_HOSTNAME:-mail.localhost}
       AllowedHosts: ${WEB_HOSTS:-localhost;127.0.0.1}
+      ReverseProxy__KnownProxies__0: ${TRUSTED_PROXY_IP:-127.0.0.1}
       DataProtection__KeyDirectory: /app/keys
+      Identity__DataDirectory: /app/identity
     volumes:
       - web_keys:/app/keys
+      - identity_data:/app/identity
     depends_on:
       mongo:
         condition: service_healthy
@@ -37,3 +41,4 @@ services:
 volumes:
   mongo_data:
   web_keys:
+  identity_data:
