@@ -1,0 +1,97 @@
+:root {
+  color-scheme:dark;
+  --page:#0b1120;
+  --side:#0d1526;
+  --card:#111c2f;
+  --text:#eef4ff;
+  --muted:#a2b2cc;
+  --quiet:#8295b3;
+  --faint:#425774;
+  --accent:#86b7ff;
+  --accent-fill:#2563eb;
+  --accent-hover:#1d4ed8;
+  --on-accent:#fff;
+  --border:#25334a;
+  --selected:#192f51;
+  --hover:#17263d;
+  --address:#13233b;
+  --address-border:#2d4c76;
+  --address-shadow:#0d192c;
+  --badge:#18375d;
+  --focus:#75acff;
+  --art-back:#14243b;
+  --art-line:#6187bd;
+  --envelope:#1c365b;
+  --art-shadow:#0a1526;
+  --unread:#142540;
+  --info-border:#2c4b75;
+  --info-background:#13233a;
+  --info-text:#b4ccf1;
+  --reader-background:#0f192b;
+  --danger-text:#ffb5bb;
+  --danger-soft:#a9384c26;
+  --modal-backdrop:#030916b3;
+  --shadow:#00000045;
+}
+
+html[data-theme="light"] {
+  color-scheme:light;
+  --page:#f7f9fd;
+  --side:#edf2fa;
+  --card:#fff;
+  --text:#172b4a;
+  --muted:#526782;
+  --quiet:#647891;
+  --faint:#acbcd2;
+  --accent:#245bb9;
+  --accent-fill:#2563eb;
+  --accent-hover:#1d4ed8;
+  --border:#dce5f2;
+  --selected:#dce9fc;
+  --hover:#eaf1fc;
+  --address:#eaf2ff;
+  --address-border:#ccddf6;
+  --address-shadow:#dbe7fa;
+  --badge:#d8e8ff;
+  --focus:#4388ed;
+  --art-back:#f2f6fd;
+  --art-line:#7c9cc8;
+  --envelope:#dbe8fc;
+  --art-shadow:#e7eefb;
+  --unread:#f1f6ff;
+  --info-border:#c6dafa;
+  --info-background:#edf4ff;
+  --info-text:#365d94;
+  --reader-background:#fff;
+  --danger-text:#b3483a;
+  --danger-soft:#b3483a10;
+  --modal-backdrop:#07142f66;
+  --shadow:#10284920;
+}
+.mobile-mailbox {
+  display:none;
+}
+@media(max-width:660px) {
+  .mobile-mailbox {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin:0 0 22px;
+    font-size:8px;
+    font-weight:600;
+    letter-spacing:1.2px;
+    color:var(--quiet);
+  }
+  .mobile-mailbox select {
+    min-width:0;
+    max-width:73%;
+    border:1px solid var(--border);
+    border-radius:7px;
+    padding:8px;
+    background:var(--card);
+    color:var(--muted);
+    font-size:10px;
+    letter-spacing:0;
+  }
+}

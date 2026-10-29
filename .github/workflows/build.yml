@@ -1,0 +1,44 @@
+name: Build and test
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # A reusable workflow keeps its caller's event context. Fail closed for
+    # automatic events, forks, non-main refs, and unconfigured repositories.
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      toJSON(github.event.repository.fork) == 'false' &&
+      vars.TMAIL_REPOSITORY_ID != '' &&
+      github.repository_id == vars.TMAIL_REPOSITORY_ID
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mongo:
+        image: mongo:8.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'quit(db.adminCommand(\"ping\").ok ? 0 : 1)'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet restore TMailSharp.slnx --locked-mode
+      - run: dotnet test TMailSharp.slnx -c Release --no-restore
+      - run: dotnet publish src/TMailSharp.Web -c Release --no-restore -o publish
+      - name: Check deployment script syntax
+        run: bash -n scripts/deploy-linux.sh
+      - name: Test deployment and rollback
+        run: bash tests/deployment/run.sh

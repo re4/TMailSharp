@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0b1120">
+  <title>Administration — TMailSharp</title>
+  <link rel="icon" href="/favicon.svg">
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/admin.js" type="module"></script>
+</head>
+<body><div class="admin-shell">
+<header class="admin-top"><a href="/" class="brand"><span class="brand-mark"><svg><use href="/icons.svg#mail"/></svg></span><span>TMail<span class="brand-light">Sharp</span></span></a><div class="admin-top-actions"><a href="/" class="text-button"><svg><use href="/icons.svg#back"/></svg>Back to inbox</a><button id="theme-toggle" class="icon-button" aria-label="Switch to light mode"><svg><use href="/icons.svg#sun"/></svg></button></div></header>
+<main class="admin-login" id="login-panel"><div class="eyebrow">BEHIND THE MAILROOM</div><h1>Welcome back.</h1><p>Manage your email domains and see how your mail server is doing.</p><form id="login-form"><label class="form-label" for="admin-password">Administrator password</label><input id="admin-password" class="form-input" type="password" autocomplete="current-password" required><p id="login-error" class="form-error" role="alert"></p><button type="submit" class="primary-button">Open the mailroom <span>→</span></button></form><p class="admin-notice">Use the password configured on your server. For the Windows local setup, it is saved in <code>.local/admin-password.txt</code>.</p></main>
+<div id="admin-content" hidden><div class="admin-header"><div><div class="eyebrow">A LITTLE ORDER</div><h1>Your mailroom.</h1><p>Everything your temporary email service needs.</p></div><button id="logout" class="secondary-button">Sign out</button></div>
+<div class="stats-grid"><div class="stat-card"><span>Active inboxes</span><strong id="stat-inboxes">—</strong></div><div class="stat-card"><span>Stored messages</span><strong id="stat-messages">—</strong></div><div class="stat-card"><span>Enabled domains</span><strong id="stat-domains">—</strong></div></div>
+<section class="admin-panel"><h2>Email domains</h2><p>Add a domain you own, then point its MX record to your mail server. Disabling a domain stops new inboxes and incoming delivery for that domain. Existing messages remain readable until expiry.</p><form class="domain-form" id="domain-form"><input id="new-domain" class="form-input" type="text" placeholder="inbox.yourdomain.com" aria-label="New email domain" required maxlength="253"><button type="submit" class="primary-button">Add domain <span>+</span></button></form><table class="domain-table"><thead><tr><th>DOMAIN</th><th>STATUS</th><th>ACTION</th></tr></thead><tbody id="domain-rows"></tbody></table></section>
+<section class="admin-panel"><h2>Server at a glance</h2><p>Connection and retention settings come from your server configuration.</p><div class="settings-list"><div><span>Database</span><strong>MongoDB</strong></div><div><span>Incoming SMTP</span><strong id="smtp-status">—</strong></div><div><span>Inbox lifetime</span><strong id="setting-lifetime">—</strong></div><div><span>Maximum message</span><strong id="setting-size">—</strong></div><div><span>Messages per inbox</span><strong id="setting-limit">—</strong></div><div><span>SMTP encryption</span><strong id="setting-tls">—</strong></div></div></section>
+<section class="admin-panel"><h2>Connect your domain</h2><p>Replace these examples with your domain, mail host, and server IP. Internet email arrives on port 25; forward it to the configured SMTP port. Allow inbound traffic through your firewall.</p><pre class="code-example">inbox.yourdomain.com.  MX  10 mail.yourdomain.com.
+mail.yourdomain.com.   A      YOUR_SERVER_IP</pre><p class="admin-notice">The .localhost domains are for local testing. DNS changes are made with your DNS provider; adding a name above does not change DNS. Configure a TLS certificate on the receiver or place it behind a mail gateway for public use.</p></section>
+</div><div id="toast" class="toast" role="status" aria-live="polite" hidden></div></div></body></html>

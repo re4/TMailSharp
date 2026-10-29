@@ -1,0 +1,11 @@
+.git
+.local
+.env
+deploy/*.env
+**/bin
+**/obj
+**/.keys
+tests
+docs
+.artifacts
+src/TMailSharp.Web/appsettings.Local.json

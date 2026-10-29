@@ -1,0 +1,39 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5080:8080"
+      - "2525:2525"
+    environment:
+      Mongo__ConnectionString: mongodb://${MONGO_USERNAME:-tmail}:${MONGO_PASSWORD:?Set MONGO_PASSWORD in .env}@mongo:27017/tmailsharp?authSource=admin
+      Mongo__Database: tmailsharp
+      Admin__Password: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env (at least 20 characters)}
+      Mail__Domains__0: ${MAIL_DOMAIN:-drop.localhost}
+      Mail__Domains__1: ${MAIL_DOMAIN:-drop.localhost}
+      Mail__Domains__2: ${MAIL_DOMAIN:-drop.localhost}
+      Smtp__ServerName: ${SMTP_HOSTNAME:-mail.localhost}
+      AllowedHosts: ${WEB_HOSTS:-localhost;127.0.0.1}
+      DataProtection__KeyDirectory: /app/keys
+    volumes:
+      - web_keys:/app/keys
+    depends_on:
+      mongo:
+        condition: service_healthy
+  mongo:
+    image: mongo:8.0
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-tmail}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?Set MONGO_PASSWORD in .env}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+volumes:
+  mongo_data:
+  web_keys:
