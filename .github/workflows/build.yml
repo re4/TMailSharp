@@ -15,7 +15,9 @@ jobs:
       toJSON(github.event.repository.fork) == 'false' &&
       vars.TMAIL_REPOSITORY_ID != '' &&
       github.repository_id == vars.TMAIL_REPOSITORY_ID
-    runs-on: ubuntu-latest
+    # MongoDB 8.0 cannot start on affected newer Linux kernels (SERVER-121912).
+    # Ubuntu 22.04 runners use the compatible 6.8 kernel series.
+    runs-on: ubuntu-22.04
     timeout-minutes: 15
     services:
       mongo:
