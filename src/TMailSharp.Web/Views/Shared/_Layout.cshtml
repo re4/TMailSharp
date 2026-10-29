@@ -1,0 +1,34 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1120">
+  <meta name="csrf-token" content="@Antiforgery.GetAndStoreTokens(Context).RequestToken">
+  <title>@ViewData["Title"] — TMailSharp</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/site.css" asp-append-version="true">
+  <script src="/navigation.js" asp-append-version="true" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+@if (ViewData["InboxLayout"] is true)
+{
+  @RenderBody()
+}
+else
+{
+  <div class="app-shell">
+    <partial name="_Sidebar" />
+    <div class="workspace">
+      <partial name="_Topbar" />
+      <div id="main-content" tabindex="-1">@RenderBody()</div>
+    </div>
+  </div>
+}
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

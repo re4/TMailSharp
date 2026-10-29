@@ -1,0 +1,54 @@
+name: Build and test
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # A reusable workflow keeps its caller's event context. Fail closed for
+    # automatic events, forks, non-main refs, and unconfigured repositories.
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      toJSON(github.event.repository.fork) == 'false' &&
+      vars.TMAIL_REPOSITORY_ID != '' &&
+      github.repository_id == vars.TMAIL_REPOSITORY_ID
+    # MongoDB 8.0 cannot start on affected newer Linux kernels (SERVER-121912).
+    # Ubuntu 22.04 runners use the compatible 6.8 kernel series.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    services:
+      mongo:
+        image: mongo:8.0.34
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'quit(db.adminCommand(\"ping\").ok ? 0 : 1)'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Check public repository contents
+        shell: pwsh
+        run: ./scripts/check-public-repo.ps1
+      # Restoring the test project also restores its web project reference.
+      # Explicit project paths do not require the optional root solution file.
+      - name: Restore dependencies
+        run: dotnet restore tests/TMailSharp.Tests/TMailSharp.Tests.csproj --locked-mode
+      - name: Run integration tests
+        run: dotnet test tests/TMailSharp.Tests/TMailSharp.Tests.csproj -c Release --no-restore
+      - name: Publish application
+        run: dotnet publish src/TMailSharp.Web/TMailSharp.Web.csproj -c Release --no-restore -o publish
+      - name: Check deployment script syntax
+        run: bash -n scripts/deploy-linux.sh
+      - name: Test deployment and rollback
+        run: bash tests/deployment/run.sh

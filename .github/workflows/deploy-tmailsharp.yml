@@ -1,0 +1,79 @@
+name: Deploy TMailSharp
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-tmailsharp
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate before deployment
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      toJSON(github.event.repository.fork) == 'false' &&
+      vars.TMAIL_REPOSITORY_ID != '' &&
+      github.repository_id == vars.TMAIL_REPOSITORY_ID
+    uses: ./.github/workflows/build.yml
+
+  deploy:
+    name: Build and deploy
+    needs: validate
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      toJSON(github.event.repository.fork) == 'false' &&
+      vars.TMAIL_REPOSITORY_ID != '' &&
+      github.repository_id == vars.TMAIL_REPOSITORY_ID
+    runs-on: ubuntu-latest
+    environment: Auto Deploy
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Build image
+        run: docker build --tag "tmailsharp:${GITHUB_SHA}" --file Dockerfile .
+
+      - name: Save image and checksum
+        run: |
+          set -euo pipefail
+          docker save "tmailsharp:${GITHUB_SHA}" | gzip > tmailsharp-image.tar.gz
+          sha256sum tmailsharp-image.tar.gz > tmailsharp-image.tar.gz.sha256
+
+      - name: Transfer deployment bundle
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          source: tmailsharp-image.tar.gz,tmailsharp-image.tar.gz.sha256,scripts/deploy-linux.sh
+          target: /tmp/tmailsharp-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Deploy and verify
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          command_timeout: 10m
+          script: |
+            set -eu
+            bash "/tmp/tmailsharp-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}/scripts/deploy-linux.sh" \
+              "${{ github.sha }}" \
+              "/tmp/tmailsharp-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}"

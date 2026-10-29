@@ -1,0 +1,13 @@
+@model LoginInput
+@{ ViewData["Title"] = "Sign in"; }
+<main class="account-shell narrow"><div class="eyebrow">WELCOME BACK</div><h1>Your inboxes are waiting.</h1>
+<form action="/account/login" method="post" class="account-form">
+  @Html.AntiForgeryToken()<input asp-for="ReturnUrl" type="hidden">
+  <div asp-validation-summary="All" class="form-error" role="alert"></div>
+  <label asp-for="UserName">Username</label><input asp-for="UserName" class="form-input" autocomplete="username" required>
+  <label asp-for="Password">Password</label><input asp-for="Password" class="form-input" autocomplete="current-password" required>
+  <button class="primary-button">Sign in</button>
+</form><div class="account-divider">or</div>
+<button id="passkey-login" class="secondary-button full-width">Sign in with a passkey or YubiKey</button><p id="passkey-status" role="status" class="form-error"></p>
+<p>New here? <a href="/account/register">Create an account</a>.</p></main>
+@section Scripts { <script src="/account.js" type="module"></script> }
