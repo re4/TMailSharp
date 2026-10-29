@@ -2,7 +2,7 @@
 
 For v1.1.0, read [the migration guide](UPGRADING-v1.1.0.md). Account data is stored in a persistent SQLite database in `identity/` inside the mounted key directory by default. Back up both. `Admin__UserName` and `Admin__Password` bootstrap the first Identity administrator; later password changes happen through the account-security page. Public access requires HTTPS, and passkeys should use an explicitly configured `Identity__PasskeyDomain`.
 
-TMailSharp follows the deployment pattern in GravHosting: build an image in GitHub Actions, transfer it over SSH, and run it with host networking against MongoDB on the server. No container registry is required.
+The workflow builds an image in GitHub Actions, transfers it over SSH, and runs it with host networking against MongoDB on the server. No container registry is required.
 
 ## What triggers a deployment
 
@@ -14,7 +14,7 @@ The workflow targets the test and web `.csproj` files directly, so it does not r
 
 The validation job is pinned to `ubuntu-22.04`, whose [runner image uses the Linux 6.8 kernel series](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md). This avoids the [MongoDB startup incompatibility with newer kernels](https://www.mongodb.com/docs/v8.0/release-notes/8.0/). If a run fails while starting `mongo:8.0` with `SERVER-121912`, commit the updated `.github/workflows/build.yml` to main and start a **new** manual deployment. Re-running the old failed run uses its original workflow revision. This change only affects the temporary test database on GitHub.
 
-The deployment job uses the **Auto Deploy** GitHub environment, matching GravHosting's existing name. Both workflows independently require a manual event, the main branch, a non-fork repository, and an approved repository ID. Forks, pull requests, other events, and other refs skip all jobs, including validation. Checkouts use the exact commit selected by the manual run and do not persist GitHub credentials in the checkout.
+The deployment job uses the **Auto Deploy** GitHub environment. Both workflows independently require a manual event, the main branch, a non-fork repository, and an approved repository ID. Forks, pull requests, other events, and other refs skip all jobs, including validation. Checkouts use the exact commit selected by the manual run and do not persist GitHub credentials in the checkout.
 
 ## Allow the original repository
 
@@ -34,7 +34,7 @@ Protect main and the workflow/deployment files through repository branch rules a
 
 ## GitHub environment secrets
 
-Create an environment named **Auto Deploy** in the TMailSharp repository under **Settings → Environments**, with the same SSH secret names used by GravHosting:
+Create an environment named **Auto Deploy** in the TMailSharp repository under **Settings → Environments**, with these SSH secrets:
 
 | Secret | Value |
 | --- | --- |
@@ -45,7 +45,7 @@ Create an environment named **Auto Deploy** in the TMailSharp repository under *
 | `SSH_PORT` | SSH port; defaults to 22 when omitted |
 | `SSH_FINGERPRINT` | Optional SHA-256 SSH host-key fingerprint for server verification |
 
-Environment secrets belong to their repository; creating a new repository does not automatically copy GravHosting's environment secrets. If you use organization-level secrets, grant the TMailSharp repository access. Use GitHub's secret settings rather than committing any of these values.
+Environment secrets belong to their repository and are not copied to forks. If you use organization-level secrets, grant the TMailSharp repository access. Store these values in GitHub's secret settings.
 
 The SSH account needs Docker access, permission to read the server environment file, and permission to open `.deploy.lock` in the key directory. If migrating an existing native `tmailsharp.service`, it also needs permission to stop/start that service. A root deployment account, as commonly used for this deployment pattern, has these permissions; a restricted account needs equivalent explicit permissions.
 
@@ -86,7 +86,7 @@ The file uses literal Docker `KEY=value` syntax. Do not use `export`, shell subs
 
 ## Ports and HTTPS
 
-`Deploy__HttpPort=5080` selects the local HTTP listener. This differs from GravHosting's port 5000, so both applications can run on the same server. Put your existing HTTPS proxy in front of `http://127.0.0.1:5080`, preserve the Host header, and forward `X-Forwarded-Proto` and `X-Forwarded-For`. An HTTP proxy on loopback is trusted by default; configure exact trusted proxy addresses for a remote proxy.
+`Deploy__HttpPort=5080` selects the local HTTP listener. Put your HTTPS proxy in front of `http://127.0.0.1:5080`, preserve the Host header, and forward `X-Forwarded-Proto` and `X-Forwarded-For`. An HTTP proxy on loopback is trusted by default; configure exact trusted proxy addresses for a remote proxy.
 
 `Deploy__HealthHost=localhost` is sent as the Host header for deployment probes. If you remove `localhost` from `AllowedHosts`, change this setting to a hostname that is allowed. It is also saved in the container's configuration so rollback can probe the old app using its original settings.
 
@@ -106,7 +106,7 @@ For STARTTLS, put the PFX file inside the mounted key directory and configure it
 
 There is a brief interruption while the old app is stopped and the new one starts. This is not a rolling or zero-downtime deployment. Queueing incoming mail at an upstream gateway avoids losing mail during restarts.
 
-Only TMailSharp's container, tags, temporary archive, and optional `tmailsharp.service` are managed. The script does not prune the server's Docker images, change GravHosting, or remove MongoDB data. Retain any additional images you need for manual rollback and manage unused images separately.
+Only TMailSharp's container, tags, temporary archive, and optional `tmailsharp.service` are managed. The script does not prune unrelated Docker images, change other applications, or remove MongoDB data. Retain any additional images you need for manual rollback and manage unused images separately.
 
 ## Verification and recovery
 

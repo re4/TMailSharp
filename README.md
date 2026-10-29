@@ -240,13 +240,25 @@ Expiry is enforced immediately; MongoDB TTL cleanup and a background worker remo
 
 Restart the application to apply server configuration changes. With the SSH deployment, run another manual deployment after editing the server's environment file.
 
+## Keeping private files out of the repository
+
+Keep real credentials in environment variables or ignored local configuration. Commit only sanitized `.env.example` and `appsettings.*.example.json` templates. Authentication keys, account databases, mail exports, backups, and local settings are excluded from Git and Docker builds.
+
+Before committing or sharing a source archive, run:
+
+```powershell
+./scripts/check-public-repo.ps1 -IncludeUntracked
+```
+
+The check rejects private file paths and common credential patterns without printing their values. The build workflow runs it for tracked files, and `scripts/package-source.ps1` runs it before creating an archive from files eligible for Git. It supplements manual review; it cannot detect every kind of secret. If a credential has already been committed, revoke or rotate it; deleting the file does not remove earlier commits or copies.
+
 ## Manual deployment with GitHub Actions
 
 Deployments are **manual only**. Pushes and pull requests do not trigger the shipped workflows.
 
 Maintainer setup for [re4/TMailSharp](https://github.com/re4/TMailSharp):
 
-1. Add the **repository variable** `TMAIL_REPOSITORY_ID` with value `1437995940`. It belongs under **Settings → Secrets and variables → Actions → Variables**, not under secrets or inside an environment.
+1. Add the **repository variable** `TMAIL_REPOSITORY_ID` with your repository's numeric GitHub ID (obtain it with `gh api repos/OWNER/REPO --jq .id`). It belongs under **Settings → Secrets and variables → Actions → Variables**, not under secrets or inside an environment.
 2. Create a GitHub environment named **Auto Deploy**.
 3. Add `SSH_HOST`, `SSH_USERNAME`, and `SSH_KEY` as environment secrets. Set `SSH_PORT`, `SSH_PASSPHRASE`, and `SSH_FINGERPRINT` as needed.
 4. Prepare the Linux server and `/etc/tmailsharp/tmailsharp.env` using the [deployment guide](docs/DEPLOYMENT.md).

@@ -37,6 +37,9 @@ jobs:
       - uses: actions/setup-dotnet@v6.0.0
         with:
           global-json-file: global.json
+      - name: Check public repository contents
+        shell: pwsh
+        run: ./scripts/check-public-repo.ps1
       # Restoring the test project also restores its web project reference.
       # Explicit project paths do not require the optional root solution file.
       - name: Restore dependencies
