@@ -8,8 +8,11 @@ Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::Open($zipPath, [IO.Compression.ZipArchiveMode]::Create)
 try {
-    $rootFiles = @('.gitignore', '.gitattributes', '.dockerignore', '.env.example', 'global.json', 'Directory.Build.props', 'TMailSharp.slnx', 'README.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'Dockerfile', 'compose.yaml')
+    $rootFiles = @('.gitignore', '.gitattributes', '.dockerignore', '.env.example', 'global.json', 'Directory.Build.props', 'Directory.Packages.props', 'README.md', 'LICENSE', 'Dockerfile', 'compose.yaml')
     $files = foreach ($name in $rootFiles) { Get-Item -LiteralPath (Join-Path $projectRoot $name) -Force }
+    $files += foreach ($name in @('TMailSharp.slnx', 'THIRD-PARTY-NOTICES.md')) {
+        if (Test-Path -LiteralPath (Join-Path $projectRoot $name)) { Get-Item -LiteralPath (Join-Path $projectRoot $name) -Force }
+    }
     $files += foreach ($folder in @('src', 'tests', 'scripts', 'docs', '.github', 'deploy')) {
         $folderPath = Join-Path $projectRoot $folder
         if (Test-Path -LiteralPath $folderPath) { Get-ChildItem -LiteralPath $folderPath -File -Recurse -Force }

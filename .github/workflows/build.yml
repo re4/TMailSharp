@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 15
     services:
       mongo:
-        image: mongo:8.0
+        image: mongo:8.0.34
         ports:
           - 27017:27017
         options: >-
@@ -30,13 +30,13 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6.0.0
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
       # Restoring the test project also restores its web project reference.
       # Explicit project paths do not require the optional root solution file.
       - name: Restore dependencies

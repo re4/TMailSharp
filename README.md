@@ -260,7 +260,7 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the server setup, persistent ke
 
 ## Development and tests
 
-The backend uses ASP.NET Core MVC controllers and Razor views. ASP.NET Core Identity stores accounts in SQLite; MongoDB stores mail. The frontend uses plain CSS and JavaScript, with no Node.js build step.
+The backend uses ASP.NET Core MVC controllers and Razor views. ASP.NET Core Identity stores accounts in SQLite; MongoDB stores mail. The frontend uses plain CSS and JavaScript, with no Node.js build step. Use the .NET SDK version in `global.json` (10.0.403 or a compatible newer feature band). Direct and indirect NuGet versions are managed in `Directory.Packages.props` and recorded in the project lock files.
 
 ```sh
 dotnet restore tests/TMailSharp.Tests/TMailSharp.Tests.csproj --locked-mode
